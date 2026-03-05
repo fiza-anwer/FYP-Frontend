@@ -130,8 +130,17 @@ export default function Consignments() {
                   try {
                     await openConsignmentLabel(row.id, w ?? undefined);
                   } catch (e) {
-                    if (w && !w.closed) w.close();
-                    alert((e instanceof Error ? e.message : "Failed to open label") + "\n\nCheck that the consignment has a label and you are logged in.");
+                    const msg = e instanceof Error ? e.message : "Failed to open label";
+                    if (w && !w.closed) {
+                      if (row.tracking_url?.trim()) {
+                        w.location.href = row.tracking_url.trim();
+                      } else {
+                        w.close();
+                        alert(msg + "\n\nCheck that the consignment has a label and you are logged in.");
+                      }
+                    } else {
+                      alert(msg + "\n\nCheck that the consignment has a label and you are logged in.");
+                    }
                   }
                 }}
                 className="text-brand-600 hover:underline text-sm bg-transparent border-none cursor-pointer p-0 font-inherit"

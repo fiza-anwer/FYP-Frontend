@@ -74,7 +74,9 @@ export async function openConsignmentLabel(
   if (!res.ok) {
     if (w && !w.closed) w.close();
     const data = await res.json().catch(() => ({}));
-    throw new Error((data as { error?: string }).error || "Failed to load label");
+    const msg = (data as { error?: string }).error;
+    const fallback = `Failed to load label (${res.status})`;
+    throw new Error(msg && String(msg).trim() ? msg : fallback);
   }
   if (res.ok) {
     const blob = await res.blob();
