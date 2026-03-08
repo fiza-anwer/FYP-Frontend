@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
 import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
-import { tenantApi, openConsignmentLabel, type Order, type Consignment } from "../api/client";
+import { tenantApi, openConsignmentLabel, type Order, type Consignment, type Company } from "../api/client";
 
 function formatDate(d: string) {
   try {
@@ -23,18 +23,22 @@ type ConsignmentRow = Consignment & { _order?: Order | null };
 export default function Consignments() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [consignments, setConsignments] = useState<Consignment[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companyFilter, setCompanyFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dispatchLoading, setDispatchLoading] = useState(false);
   const [dispatchSuccessCount, setDispatchSuccessCount] = useState<number | null>(null);
+  const [consignmentSort, setConsignmentSort] = useState<"newest" | "oldest">("newest");
 
   const load = async () => {
     setError("");
     try {
+      const params = companyFilter ? { company_id: companyFilter } : undefined;
       const [ordersRes, consignmentsRes] = await Promise.all([
-        tenantApi.getOrders(),
-        tenantApi.getConsignments(),
+        tenantApi.getOrders(params),
+        tenantApi.getConsignments(params),
       ]);
       setOrders(Array.isArray(ordersRes?.orders) ? ordersRes.orders : []);
       setConsignments(Array.isArray(consignmentsRes?.consignments) ? consignmentsRes.consignments : []);
@@ -47,6 +51,10 @@ export default function Consignments() {
 
   useEffect(() => {
     load();
+  }, [companyFilter]);
+
+  useEffect(() => {
+    tenantApi.getCompanies().then((res) => setCompanies(res.companies || [])).catch(() => setCompanies([]));
   }, []);
 
   const ordersById: Record<string, Order> = {};
@@ -58,6 +66,11 @@ export default function Consignments() {
     ...c,
     _order: ordersById[c.order_id] ?? null,
   }));
+  const sortedRows = [...rows].sort((a, b) => {
+    const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return consignmentSort === "newest" ? tb - ta : ta - tb;
+  });
 
   const columns: DataGridColumn<ConsignmentRow>[] = [
     {
@@ -224,6 +237,28 @@ export default function Consignments() {
           Orders that already have a consignment. Print labels and dispatch only for orders with a shipping address. Track after dispatch.
         </p>
         <div className="flex flex-wrap items-center gap-4 py-2">
+          <select
+            value={companyFilter}
+            onChange={(e) => setCompanyFilter(e.target.value)}
+            className="h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+            aria-label="Filter by company"
+          >
+            <option value="">All companies</option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={consignmentSort}
+            onChange={(e) => setConsignmentSort(e.target.value as "newest" | "oldest")}
+            className="h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 min-w-[140px]"
+            aria-label="Sort order"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
           <button
             type="button"
             onClick={handleDispatch}
@@ -240,7 +275,7 @@ export default function Consignments() {
         </div>
         <DataGrid
           columns={columns}
-          data={rows}
+          data={sortedRows}
           keyExtractor={(r) => r.id}
           emptyMessage="No consignments yet. Create consignments from the Orders page."
           loading={loading}

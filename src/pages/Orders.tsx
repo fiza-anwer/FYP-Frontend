@@ -52,11 +52,32 @@ function buildColumns(): DataGridColumn<OrderWithConsignment>[] {
 
 const DEFAULT_STATUSES = ["imported", "consigned"];
 const DISPATCHED_STATUS = "dispatched";
+const PK = "PK";
 
 function hasValidAddress(order: OrderWithConsignment): boolean {
   const a = order?.address;
   if (!a) return false;
   return !!(a.address1 || a.city || a.postal_code || a.country_code);
+}
+
+function normCountry(code: string | undefined): string {
+  if (!code) return "";
+  const s = String(code).trim().toUpperCase();
+  if (s === "PAK" || s === "PAKISTAN") return PK;
+  return s.slice(0, 2);
+}
+
+/** Suggest carrier from route: domestic PK→PK => Leopard, international PK→other => DHL */
+function getSuggestedCarrierSlug(
+  originCountry: string,
+  destinationCountry: string
+): "leopard" | "dhl" | null {
+  const o = normCountry(originCountry) || PK;
+  const d = normCountry(destinationCountry);
+  if (!d) return null;
+  if (o === PK && d === PK) return "leopard";
+  if (o === PK && d !== PK) return "dhl";
+  return null;
 }
 
 export default function Orders() {
@@ -79,6 +100,7 @@ export default function Orders() {
   const [consignmentServiceId, setConsignmentServiceId] = useState("");
   const [consignmentSubmitting, setConsignmentSubmitting] = useState(false);
   const [consignmentSuccessCount, setConsignmentSuccessCount] = useState<number | null>(null);
+  const [orderSort, setOrderSort] = useState<"newest" | "oldest">("newest");
 
   const load = async () => {
     setError("");
@@ -129,7 +151,12 @@ export default function Orders() {
   const ordersFilteredByCompany = companyFilter
     ? allOrders.filter((o) => o.company_id === companyFilter)
     : allOrders;
-  const ordersToShow = ordersFilteredByCompany.filter((o) => statusFilter.includes(o.status));
+  const ordersFilteredByStatus = ordersFilteredByCompany.filter((o) => statusFilter.includes(o.status));
+  const ordersToShow = [...ordersFilteredByStatus].sort((a, b) => {
+    const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return orderSort === "newest" ? tb - ta : ta - tb;
+  });
   const columns = buildColumns();
 
   const handleSelectionChange = (ids: string[]) => {
@@ -139,6 +166,32 @@ export default function Orders() {
   const selectedOrders = ordersToShow.filter((o) => selectedIds.has(o.id));
   const selectedWithAddress = selectedOrders.filter(hasValidAddress).map((o) => o.id);
   const selectedWithoutAddress = selectedOrders.filter((o) => !hasValidAddress(o));
+
+  const firstSelectedWithAddress = selectedOrders.find(hasValidAddress);
+  const originCountry = firstSelectedWithAddress?.company_id
+    ? (companies.find((c) => c.id === firstSelectedWithAddress.company_id)?.address?.country_code ?? PK)
+    : PK;
+  const destinationCountry = firstSelectedWithAddress?.address?.country_code ?? "";
+  const suggestedSlug = getSuggestedCarrierSlug(originCountry, destinationCountry);
+  const suggestedIntegration = suggestedSlug
+    ? carrierIntegrations.find((ci) => (ci.carrier_slug || "").toLowerCase() === suggestedSlug)
+    : null;
+
+  const applySuggestion = async () => {
+    if (!suggestedIntegration) return;
+    try {
+      const res = await tenantApi.getCarrierIntegrationServices({
+        carrier_integration_id: suggestedIntegration.id,
+      });
+      const services = res?.carrier_integration_services ?? [];
+      setConsignmentCarrierId(suggestedIntegration.id);
+      setCarrierIntegrationServices(services);
+      setConsignmentServiceId(services[0]?.carrier_service_id ?? "");
+    } catch {
+      setCarrierIntegrationServices([]);
+      setConsignmentServiceId("");
+    }
+  };
 
   const handleCreateConsignment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -233,6 +286,15 @@ export default function Orders() {
               </option>
             ))}
           </select>
+          <select
+            value={orderSort}
+            onChange={(e) => setOrderSort(e.target.value as "newest" | "oldest")}
+            className="px-3 py-2 text-sm border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white min-w-[140px]"
+            aria-label="Sort order"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
           <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300">
             <input
               type="checkbox"
@@ -321,6 +383,25 @@ export default function Orders() {
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               Uses: order shipping address (destination), company address (origin), carrier credentials. One label per selected order.
             </p>
+            {suggestedIntegration && firstSelectedWithAddress && (
+              <div className="mb-4 rounded-lg border border-brand-200 bg-brand-50/80 dark:bg-brand-900/20 dark:border-brand-800 p-3">
+                <p className="text-sm font-medium text-brand-800 dark:text-brand-200 mb-1">Suggested carrier</p>
+                <p className="text-sm text-brand-700 dark:text-brand-300 mb-2">
+                  {suggestedSlug === "leopard"
+                    ? "Domestic (Pakistan → Pakistan): use Leopard Courier"
+                    : suggestedSlug === "dhl"
+                    ? "International (Pakistan → other country): use DHL"
+                    : ""}
+                </p>
+                <button
+                  type="button"
+                  onClick={applySuggestion}
+                  className="text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg px-3 py-1.5"
+                >
+                  Use suggestion
+                </button>
+              </div>
+            )}
             <form onSubmit={handleCreateConsignment} className="space-y-4">
               <div>
                 <Label htmlFor="carrier">Carrier integration</Label>

@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
 import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
-import { tenantApi, type Product, type ProductVariant, type Company } from "../api/client";
+import { tenantApi, type Product, type ProductVariant, type Company, type CompanyIntegration } from "../api/client";
 import Input from "../components/form/input/InputField";
 import Label from "../components/form/Label";
 import TextArea from "../components/form/input/TextArea";
@@ -56,11 +56,14 @@ function emptyForm() {
     price: "",
     price_old: "",
     coupon: "",
-    status: "published" as "published" | "scheduled" | "hidden",
+    status: "active" as "active" | "draft" | "archived",
     sizes: [] as string[],
     shipping_country: "",
     images: [] as string[],
+    tags: [] as string[],
+    vendor: "",
     company_id: "" as string,
+    integration_slugs: [] as string[],
     variants: [] as ProductVariant[],
   };
 }
@@ -81,6 +84,8 @@ export default function Products() {
   const [saving, setSaving] = useState(false);
   const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [companyIntegrations, setCompanyIntegrations] = useState<CompanyIntegration[]>([]);
+  const [companyFilter, setCompanyFilter] = useState("");
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
   const formContainerRef = useRef<HTMLDivElement>(null);
 
@@ -88,14 +93,16 @@ export default function Products() {
     setError("");
     setLoading(true);
     try {
-      const res = await tenantApi.getProducts();
+      const res = await tenantApi.getProducts(
+        companyFilter ? { company_id: companyFilter } : undefined
+      );
       setProducts(Array.isArray(res?.products) ? res.products : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load products");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [companyFilter]);
 
   useEffect(() => {
     void load();
@@ -103,6 +110,9 @@ export default function Products() {
 
   useEffect(() => {
     tenantApi.getCompanies().then((res) => setCompanies(res.companies || [])).catch(() => setCompanies([]));
+  }, []);
+  useEffect(() => {
+    tenantApi.getCompanyIntegrations().then((res) => setCompanyIntegrations(res.company_integrations || [])).catch(() => setCompanyIntegrations([]));
   }, []);
 
   useEffect(() => {
@@ -112,6 +122,7 @@ export default function Products() {
   }, [formVisible]);
 
   const openCreate = () => {
+    setError("");
     setEditing(null);
     setEditingVariantIndex(null);
     setSyncWarning(null);
@@ -121,6 +132,7 @@ export default function Products() {
 
   /** Open edit form. When variantIndex is set, only that variant is shown and saved. */
   const openEdit = (p: Product, variantIndex?: number) => {
+    setError("");
     setEditing(p);
     setEditingVariantIndex(variantIndex ?? null);
     const variants = Array.isArray(p.variants) ? p.variants : [];
@@ -142,11 +154,14 @@ export default function Products() {
       price: displayPrice != null ? String(displayPrice) : "",
       price_old: displayPriceOld != null ? String(displayPriceOld) : "",
       coupon: p.coupon ?? "",
-      status: (p.status === "scheduled" || p.status === "hidden" ? p.status : "published") as "published" | "scheduled" | "hidden",
+      status: (["active", "draft", "archived"].includes(String(p.status || "")) ? (p.status as "active" | "draft" | "archived") : (p.status === "published" ? "active" : p.status === "scheduled" ? "draft" : p.status === "hidden" ? "archived" : "active")) as "active" | "draft" | "archived",
       sizes: Array.isArray(p.sizes) ? p.sizes : [],
       shipping_country: p.shipping_country ?? "",
       images: Array.isArray(p.images) ? p.images : [],
+      tags: Array.isArray(p.tags) ? p.tags : [],
+      vendor: p.vendor ?? "",
       company_id: p.company_id ?? "",
+      integration_slugs: Array.isArray(p.integration_slugs) ? p.integration_slugs : [],
       variants: singleVariant,
     });
     setFormVisible(true);
@@ -190,21 +205,38 @@ export default function Products() {
     }));
   };
 
+  const parsePrice = (val: string | number | undefined | null): number | null => {
+    if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) return null;
+    const n = Number(typeof val === "string" ? val.trim() : val);
+    return Number.isNaN(n) ? null : n;
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     const title = form.title.trim();
     if (!title) {
-      setError("Product name is required.");
+      setError("Product title is required.");
+      return;
+    }
+    const companyHasShopify =
+      form.company_id &&
+      companyIntegrations.some(
+        (ci) => (ci.company_id || "") === form.company_id && (ci.integration_slug || "") === "shopify" && ci.status === 1
+      );
+    const categoryTrimmed = form.product_type.trim();
+    if (companyHasShopify && !categoryTrimmed) {
+      setError("Category is required when syncing to Shopify. Enter a category (e.g. Laptops, Jewellery, T-Shirts) so it appears in your Shopify store.");
       return;
     }
     setError("");
     setSaving(true);
     try {
-      const price = form.price.trim() === "" ? undefined : Number(form.price);
-      const price_old = form.price_old.trim() === "" ? undefined : Number(form.price_old);
+      const price = parsePrice(form.price);
+      const price_old = parsePrice(form.price_old);
       const variants = form.variants.map((v) => ({
         ...v,
-        price: v.price != null ? v.price : undefined,
+        price: parsePrice(v.price as string | number),
       }));
       if (editing) {
         let variantsToSend: typeof variants | undefined = variants.length ? variants : undefined;
@@ -213,31 +245,35 @@ export default function Products() {
           const updated = variants[0];
           if (updated) {
             merged[editingVariantIndex] = { ...merged[editingVariantIndex], ...updated };
-            if (price != null && !Number.isNaN(price)) merged[editingVariantIndex].price = price;
+            if (price !== null) merged[editingVariantIndex].price = price;
             variantsToSend = merged;
           }
         }
         const updatePayload = {
           title,
+          company_id: form.company_id.trim() || null,
           page_title: form.page_title.trim() || undefined,
           handle: form.handle.trim() || undefined,
           description: form.description.trim() || undefined,
           sku: form.sku.trim() || undefined,
           product_type: form.product_type.trim() || undefined,
-          price: price != null && !Number.isNaN(price) ? price : undefined,
-          price_old: price_old != null && !Number.isNaN(price_old) ? price_old : undefined,
+          price: price !== null ? price : null,
+          price_old: price_old !== null ? price_old : null,
           coupon: form.coupon.trim() || undefined,
           status: form.status,
           sizes: form.sizes.length ? form.sizes : undefined,
           shipping_country: form.shipping_country || undefined,
           images: form.images.length ? form.images : undefined,
+          tags: form.tags.length ? form.tags : undefined,
+          vendor: form.vendor.trim() || undefined,
+          integration_slugs: form.integration_slugs,
           variants: variantsToSend,
         };
         const data = await tenantApi.updateProduct(editing.id, updatePayload) as Product & { sync_warning?: string };
         if (data?.sync_warning) setSyncWarning(data.sync_warning);
         else setSyncWarning(null);
       } else {
-        await tenantApi.createProduct({
+        const created = await tenantApi.createProduct({
           title,
           company_id: form.company_id.trim() || undefined,
           page_title: form.page_title.trim() || undefined,
@@ -245,16 +281,23 @@ export default function Products() {
           description: form.description.trim() || undefined,
           sku: form.sku.trim() || undefined,
           product_type: form.product_type.trim() || undefined,
-          price: price != null && !Number.isNaN(price) ? price : undefined,
-          price_old: price_old != null && !Number.isNaN(price_old) ? price_old : undefined,
+          price: price !== null ? price : undefined,
+          price_old: price_old !== null ? price_old : undefined,
           coupon: form.coupon.trim() || undefined,
           status: form.status,
           sizes: form.sizes.length ? form.sizes : undefined,
           shipping_country: form.shipping_country || undefined,
           images: form.images.length ? form.images : undefined,
+          tags: form.tags.length ? form.tags : undefined,
+          vendor: form.vendor.trim() || undefined,
+          integration_slugs: form.integration_slugs,
           source: "local",
           variants: variants.length ? variants : undefined,
-        });
+        }) as Product & { category_warning?: string };
+        if (created?.category_warning) setSyncWarning(created.category_warning);
+        else setSyncWarning(null);
+        // So the refetched list includes the new product (match current filter or show all)
+        setCompanyFilter(created?.company_id ?? "");
       }
       await load();
       closeForm();
@@ -263,6 +306,20 @@ export default function Products() {
       setSyncWarning(null);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePushToShopify = async (p: Product) => {
+    setActionsOpenId(null);
+    setError("");
+    try {
+      const data = await tenantApi.pushProductToShopify(p.id) as Product & { category_warning?: string };
+      if (data?.category_warning) setSyncWarning(data.category_warning);
+      else setSyncWarning(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Push to Shopify failed.");
+      setSyncWarning(null);
     }
   };
 
@@ -311,7 +368,13 @@ export default function Products() {
         );
       });
     }
-    if (statusFilter) list = list.filter((row) => (row.product.status ?? "active") === statusFilter);
+    if (statusFilter) {
+      list = list.filter((row) => {
+        const s = row.product.status ?? "active";
+        const normalized = s === "published" ? "active" : s === "scheduled" ? "draft" : s === "hidden" ? "archived" : s;
+        return normalized === statusFilter;
+      });
+    }
     if (typeFilter)
       list = list.filter((row) => (row.product.product_type ?? "").toLowerCase() === typeFilter.toLowerCase());
     const rowPrice = (row: ProductListRow) => row.variant?.price ?? row.product.price ?? 0;
@@ -378,6 +441,11 @@ export default function Products() {
               className="left-0 right-auto min-w-[120px]"
             >
               <DropdownItem onClick={() => openEdit(row.product, row.variantIndex)}>Edit</DropdownItem>
+              {row.product.company_id && row.product.source !== "shopify" && (
+                <DropdownItem onClick={() => handlePushToShopify(row.product)}>
+                  Push to Shopify
+                </DropdownItem>
+              )}
               <DropdownItem
                 onClick={() => handleDelete(row.product)}
                 className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20"
@@ -396,10 +464,10 @@ export default function Products() {
       render: (_, row) =>
         String((row.variant?.sku ?? row.product.sku ?? "").trim() || "—"),
     },
-    { key: "product_type", label: "Type", render: (_, row) => String(row.product.product_type || "—") },
+    { key: "product_type", label: "Category", render: (_, row) => String(row.product.product_type || "—") },
     {
       key: "option",
-      label: "Option",
+      label: "Variant (e.g. Size/Color)",
       render: (_, row) => String(row.variant?.option1 ?? row.variant?.title ?? "—"),
     },
     {
@@ -420,14 +488,24 @@ export default function Products() {
         return "—";
       },
     },
-    { key: "status", label: "Status", render: (_, row) => String(row.product.status || "active") },
+    {
+      key: "status",
+      label: "Status",
+      render: (_, row) => {
+        const s = row.product.status || "active";
+        const label = s === "published" ? "Active" : s === "scheduled" ? "Draft" : s === "hidden" ? "Archived" : String(s).charAt(0).toUpperCase() + String(s).slice(1).toLowerCase();
+        return label;
+      },
+    },
     {
       key: "source",
-      label: "Source",
+      label: "Synced to",
       render: (_, row) =>
-        row.product.source
-          ? String(row.product.source).charAt(0).toUpperCase() + String(row.product.source).slice(1).toLowerCase()
-          : "—",
+        row.product.source === "shopify"
+          ? "Shopify"
+          : row.product.company_id
+            ? "Not synced"
+            : "—",
     },
   ];
 
@@ -532,32 +610,32 @@ export default function Products() {
 
                   <section className="rounded-xl border border-gray-100 bg-gray-50/50 p-5 dark:border-gray-800 dark:bg-gray-800/30">
                     <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                      Visibility
+                      Status (Shopify)
                     </h3>
                     <div className="flex flex-wrap gap-6">
                       <Radio
-                        id="vis-published"
+                        id="vis-active"
                         name="visibility"
-                        value="published"
-                        checked={form.status === "published"}
-                        label="Published"
-                        onChange={(v) => setForm((f) => ({ ...f, status: v as "published" }))}
+                        value="active"
+                        checked={form.status === "active"}
+                        label="Active"
+                        onChange={(v) => setForm((f) => ({ ...f, status: v as "active" }))}
                       />
                       <Radio
-                        id="vis-scheduled"
+                        id="vis-draft"
                         name="visibility"
-                        value="scheduled"
-                        checked={form.status === "scheduled"}
-                        label="Scheduled"
-                        onChange={(v) => setForm((f) => ({ ...f, status: v as "scheduled" }))}
+                        value="draft"
+                        checked={form.status === "draft"}
+                        label="Draft"
+                        onChange={(v) => setForm((f) => ({ ...f, status: v as "draft" }))}
                       />
                       <Radio
-                        id="vis-hidden"
+                        id="vis-archived"
                         name="visibility"
-                        value="hidden"
-                        checked={form.status === "hidden"}
-                        label="Hidden"
-                        onChange={(v) => setForm((f) => ({ ...f, status: v as "hidden" }))}
+                        value="archived"
+                        checked={form.status === "archived"}
+                        label="Archived"
+                        onChange={(v) => setForm((f) => ({ ...f, status: v as "archived" }))}
                       />
                     </div>
                   </section>
@@ -584,7 +662,7 @@ export default function Products() {
                         Variants
                       </h3>
                       <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-                        Add variant options (e.g. size/color) with SKU and price. One product can have multiple variants on Shopify.
+                        Shopify variants: set Option 1 (e.g. Size or Color), SKU, and price per variant. Avoid &quot;Default Title&quot; so the option shows correctly in Shopify.
                       </p>
                       <div className="space-y-3">
                         {form.variants.map((v, i) => (
@@ -601,16 +679,22 @@ export default function Products() {
                             <Input
                               value={v.option1 ?? v.title ?? ""}
                               onChange={(e) => updateVariant(i, "option1", e.target.value)}
-                              placeholder="Option (e.g. Size)"
+                              placeholder="Option 1 (e.g. Size or Color)"
                               className="flex-1 min-w-[80px]"
                             />
                             <Input
                               type="text"
                               inputMode="decimal"
                               value={v.price != null ? String(v.price) : ""}
-                              onChange={(e) =>
-                                updateVariant(i, "price", e.target.value === "" ? undefined : Number(e.target.value))
-                              }
+                              onChange={(e) => {
+                                const raw = e.target.value.trim();
+                                if (raw === "") {
+                                  updateVariant(i, "price", undefined);
+                                  return;
+                                }
+                                const num = Number(raw);
+                                updateVariant(i, "price", Number.isNaN(num) ? undefined : num);
+                              }}
                               placeholder="Price"
                               className="w-24"
                             />
@@ -644,7 +728,7 @@ export default function Products() {
                     </h3>
                     <div className="space-y-4">
                       <div>
-                        <Label>Name</Label>
+                        <Label>Title (Shopify: Product name)</Label>
                         <Input
                           value={form.title}
                           onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -654,16 +738,33 @@ export default function Products() {
                         />
                       </div>
                       <div>
-                        <Label>Page title (SEO)</Label>
+                        <Label>
+                          Category
+                          {form.company_id && companyIntegrations.some((ci) => (ci.company_id || "") === form.company_id && (ci.integration_slug || "") === "shopify" && ci.status === 1) && (
+                            <span className="ml-1 text-rose-600 dark:text-rose-400">*</span>
+                          )}
+                        </Label>
                         <Input
-                          value={form.page_title}
-                          onChange={(e) => setForm((f) => ({ ...f, page_title: e.target.value }))}
-                          placeholder="e.g. Buy Classic Cotton T-Shirt Online"
+                          value={form.product_type}
+                          onChange={(e) => setForm((f) => ({ ...f, product_type: e.target.value }))}
+                          placeholder="e.g. Laptops, Jewellery, Trousers, T-Shirts"
                           className="mt-1.5"
+                          list="shopify-category-suggestions"
                         />
+                        <datalist id="shopify-category-suggestions">
+                          <option value="Laptops" />
+                          <option value="Jewellery" />
+                          <option value="Trousers" />
+                          <option value="T-Shirts" />
+                          <option value="Accessories" />
+                          <option value="Electronics" />
+                        </datalist>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Syncs to Shopify&apos;s Category column. Required when publishing to Shopify. Use standard names so it appears correctly in your store.
+                        </p>
                       </div>
                       <div>
-                        <Label>Product URL handle (slug)</Label>
+                        <Label>Product URL handle (Shopify: handle)</Label>
                         <Input
                           value={form.handle}
                           onChange={(e) => setForm((f) => ({ ...f, handle: e.target.value }))}
@@ -671,12 +772,21 @@ export default function Products() {
                           className="mt-1.5"
                         />
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          Used in product page URL. Leave blank to auto-generate from name.
+                          Used in product page URL. Leave blank to auto-generate from title.
                         </p>
+                      </div>
+                      <div>
+                        <Label>Page title (Shopify: SEO title)</Label>
+                        <Input
+                          value={form.page_title}
+                          onChange={(e) => setForm((f) => ({ ...f, page_title: e.target.value }))}
+                          placeholder="e.g. Buy Classic Cotton T-Shirt Online"
+                          className="mt-1.5"
+                        />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <Label>SKU</Label>
+                          <Label>SKU (Shopify)</Label>
                           <Input
                             value={form.sku}
                             onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
@@ -685,40 +795,174 @@ export default function Products() {
                           />
                         </div>
                         <div>
-                          <Label>Product type</Label>
+                          <Label>Vendor (Shopify: Brand)</Label>
                           <Input
-                            value={form.product_type}
-                            onChange={(e) => setForm((f) => ({ ...f, product_type: e.target.value }))}
-                            placeholder="e.g. T-Shirt"
+                            value={form.vendor}
+                            onChange={(e) => setForm((f) => ({ ...f, vendor: e.target.value }))}
+                            placeholder="e.g. My Brand"
                             className="mt-1.5"
                           />
                         </div>
                       </div>
+                      <div>
+                        <Label>Tags (Shopify: comma-separated)</Label>
+                        <Input
+                          value={form.tags.join(", ")}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              tags: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+                            }))
+                          }
+                          placeholder="e.g. jewellery, gold, gift"
+                          className="mt-1.5"
+                        />
+                      </div>
                       {!editing && (
-                        <div>
-                          <Label>Company (required to publish on Shopify)</Label>
-                          <select
-                            value={form.company_id}
-                            onChange={(e) => setForm((f) => ({ ...f, company_id: e.target.value }))}
-                            className="mt-1.5 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
-                          >
-                            <option value="">Select company (product will be local only if empty)</option>
-                            {companies.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.name || c.id}
-                              </option>
-                            ))}
-                          </select>
-                          <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                            Pick a company that has Shopify connected in Setup → Company Integrations so the product appears in your Shopify store.
-                          </p>
-                        </div>
+                        <>
+                          <div>
+                            <Label>Company (required to publish on channels)</Label>
+                            <select
+                              value={form.company_id}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setForm((f) => ({ ...f, company_id: v, integration_slugs: [] }));
+                              }}
+                              className="mt-1.5 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
+                            >
+                              <option value="">Select company (product will be local only if empty)</option>
+                              {companies.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name || c.id}
+                                </option>
+                              ))}
+                            </select>
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                              If this product already exists for the company (e.g. from Shopify), edit it from the list instead of adding again to avoid duplicates.
+                            </p>
+                          </div>
+                          {form.company_id && (() => {
+                            const integrationsForCompany = companyIntegrations.filter(
+                              (ci) => (ci.company_id || "") === form.company_id && ci.status === 1
+                            );
+                            if (integrationsForCompany.length === 0) return null;
+                            return (
+                              <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30">
+                                <Label>Show this product on</Label>
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                  All platforms = all stores (e.g. Shopify, Daraz) for this company. Or choose specific platforms only.
+                                </p>
+                                <div className="mt-3 space-y-2">
+                                  <label className="flex items-center gap-2">
+                                    <input
+                                      type="radio"
+                                      name="integration_scope"
+                                      checked={form.integration_slugs.length === 0}
+                                      onChange={() => setForm((f) => ({ ...f, integration_slugs: [] }))}
+                                      className="h-4 w-4 border-gray-300 text-sky-600 focus:ring-sky-500"
+                                    />
+                                    <span className="text-sm">All platforms (all stores for this company)</span>
+                                  </label>
+                                  <label className="flex items-center gap-2">
+                                    <input
+                                      type="radio"
+                                      name="integration_scope"
+                                      checked={form.integration_slugs.length > 0}
+                                      onChange={() => setForm((f) => ({ ...f, integration_slugs: integrationsForCompany.map((i) => i.integration_slug || "").filter(Boolean) }))}
+                                      className="h-4 w-4 border-gray-300 text-sky-600 focus:ring-sky-500"
+                                    />
+                                    <span className="text-sm">Only selected platforms:</span>
+                                  </label>
+                                  {form.integration_slugs.length > 0 && (
+                                    <div className="ml-6 flex flex-wrap gap-3">
+                                      {integrationsForCompany.map((ci) => (
+                                        <label key={ci.id} className="flex items-center gap-2">
+                                          <input
+                                            type="checkbox"
+                                            checked={form.integration_slugs.includes(ci.integration_slug || "")}
+                                            onChange={(e) => {
+                                              const slug = ci.integration_slug || "";
+                                              if (!slug) return;
+                                              setForm((f) =>
+                                                e.target.checked
+                                                  ? { ...f, integration_slugs: [...f.integration_slugs, slug] }
+                                                  : { ...f, integration_slugs: f.integration_slugs.filter((s) => s !== slug) }
+                                              );
+                                            }}
+                                            className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                                          />
+                                          <span className="text-sm">{ci.integration_name || ci.integration_slug || "Unknown"}</span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </>
                       )}
+                      {editing && form.company_id && (() => {
+                        const integrationsForCompany = companyIntegrations.filter(
+                          (ci) => (ci.company_id || "") === form.company_id && ci.status === 1
+                        );
+                        if (integrationsForCompany.length === 0) return null;
+                        return (
+                          <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30">
+                            <Label>Show this product on</Label>
+                            <div className="mt-3 space-y-2">
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  name="integration_scope_edit"
+                                  checked={form.integration_slugs.length === 0}
+                                  onChange={() => setForm((f) => ({ ...f, integration_slugs: [] }))}
+                                  className="h-4 w-4 border-gray-300 text-sky-600 focus:ring-sky-500"
+                                />
+                                <span className="text-sm">All platforms</span>
+                              </label>
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  name="integration_scope_edit"
+                                  checked={form.integration_slugs.length > 0}
+                                  onChange={() => setForm((f) => ({ ...f, integration_slugs: integrationsForCompany.map((i) => i.integration_slug || "").filter(Boolean) }))}
+                                  className="h-4 w-4 border-gray-300 text-sky-600 focus:ring-sky-500"
+                                />
+                                <span className="text-sm">Only selected:</span>
+                              </label>
+                              {form.integration_slugs.length > 0 && (
+                                <div className="ml-6 flex flex-wrap gap-3">
+                                  {integrationsForCompany.map((ci) => (
+                                    <label key={ci.id} className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={form.integration_slugs.includes(ci.integration_slug || "")}
+                                        onChange={(e) => {
+                                          const slug = ci.integration_slug || "";
+                                          if (!slug) return;
+                                          setForm((f) =>
+                                            e.target.checked
+                                              ? { ...f, integration_slugs: [...f.integration_slugs, slug] }
+                                              : { ...f, integration_slugs: f.integration_slugs.filter((s) => s !== slug) }
+                                          );
+                                        }}
+                                        className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                                      />
+                                      <span className="text-sm">{ci.integration_name || ci.integration_slug || "Unknown"}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </section>
 
                   <section className="rounded-xl border border-gray-100 bg-gray-50/50 p-5 dark:border-gray-800 dark:bg-gray-800/30">
-                    <Label>Product description</Label>
+                    <Label>Description (Shopify: body)</Label>
                     <TextArea
                       value={form.description}
                       onChange={(v) => setForm((f) => ({ ...f, description: v }))}
@@ -795,11 +1039,24 @@ export default function Products() {
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name, SKU, option or type…"
+                  placeholder="Search by name, SKU, option or category…"
                   className="rounded-lg border-gray-200 dark:border-gray-600"
                 />
               </div>
               <div className="flex flex-wrap items-center gap-3">
+                <select
+                  value={companyFilter}
+                  onChange={(e) => setCompanyFilter(e.target.value)}
+                  className="h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                  aria-label="Filter by company"
+                >
+                  <option value="">All companies</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
@@ -807,16 +1064,15 @@ export default function Products() {
                 >
                   <option value="">All statuses</option>
                   <option value="active">Active</option>
-                  <option value="published">Published</option>
-                  <option value="scheduled">Scheduled</option>
-                  <option value="hidden">Hidden</option>
+                  <option value="draft">Draft</option>
+                  <option value="archived">Archived</option>
                 </select>
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value)}
                   className="h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                 >
-                  <option value="">All types</option>
+                  <option value="">All categories</option>
                   {uniqueTypes.map((t) => (
                     <option key={t} value={t}>
                       {t}
@@ -854,9 +1110,6 @@ export default function Products() {
                 loading={loading}
               />
             </div>
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              Each variant is shown as a separate row. Edit or Delete applies to the whole product.
-            </p>
           </>
         )}
       </div>

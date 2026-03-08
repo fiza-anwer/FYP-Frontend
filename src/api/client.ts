@@ -144,6 +144,8 @@ export type CompanyIntegration = {
   id: string;
   company_id: string;
   integration_id: string;
+  integration_name?: string;
+  integration_slug?: string;
   credentials?: Record<string, unknown>;
   status?: number;
   company_name?: string;
@@ -198,7 +200,9 @@ export type ProductVariant = {
   sku?: string;
   title?: string;
   option1?: string;
+  option2?: string;
   price?: number;
+  price_old?: number;
   inventory_quantity?: number;
 };
 
@@ -221,6 +225,9 @@ export type Product = {
   sizes?: string[];
   shipping_country?: string | null;
   images?: string[];
+  tags?: string[];
+  vendor?: string | null;
+  integration_slugs?: string[];
   variants?: ProductVariant[];
   variant_count?: number;
   created_at?: string;
@@ -230,6 +237,8 @@ export type Product = {
 export type CarrierIntegration = {
   id: string;
   carrier_id: string;
+  carrier_name?: string;
+  carrier_slug?: string;
   credentials?: Record<string, unknown>;
   credentials_schema?: IntegrationCredentialSchema[];
   created_at?: string;
@@ -240,6 +249,8 @@ export type CarrierIntegrationService = {
   id: string;
   carrier_integration_id: string;
   carrier_service_id: string;
+  carrier_service_name?: string;
+  carrier_service_code?: string;
   code?: string;
   name?: string;
   created_at?: string;
@@ -289,6 +300,11 @@ export const tenantApi = {
     api<Company>(`/api/tenant/companies/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteCompany: (id: string) =>
     api<{ message: string }>(`/api/tenant/companies/${id}`, { method: "DELETE" }),
+  cleanupOrphanedData: () =>
+    api<{ deleted_orders: number; deleted_products: number; deleted_consignments: number; deleted_company_integrations: number }>(
+      "/api/tenant/cleanup-orphaned-data",
+      { method: "POST" }
+    ),
   getIntegrations: () =>
     api<{ integrations: Array<{ id: string; name: string; slug: string; credentials_schema: IntegrationCredentialSchema[] }> }>("/api/tenant/integrations"),
   getCompanyIntegrations: () =>
@@ -303,8 +319,11 @@ export const tenantApi = {
     const q = params?.company_id ? `?company_id=${encodeURIComponent(params.company_id)}` : "";
     return api<{ orders: Order[] }>(`/api/tenant/orders${q}`);
   },
-  getConsignments: (params?: { order_id?: string }) => {
-    const q = params?.order_id ? `?order_id=${encodeURIComponent(params.order_id)}` : "";
+  getConsignments: (params?: { order_id?: string; company_id?: string }) => {
+    const search = new URLSearchParams();
+    if (params?.order_id) search.set("order_id", params.order_id);
+    if (params?.company_id) search.set("company_id", params.company_id);
+    const q = search.toString() ? `?${search.toString()}` : "";
     return api<{ consignments: Consignment[] }>(`/api/tenant/consignments${q}`);
   },
   getCarriers: () =>
@@ -368,6 +387,9 @@ export const tenantApi = {
     sizes?: string[];
     shipping_country?: string;
     images?: string[];
+    tags?: string[];
+    vendor?: string;
+    integration_slugs?: string[];
     variants?: ProductVariant[];
   }) =>
     api<Product>("/api/tenant/products", {
@@ -378,10 +400,11 @@ export const tenantApi = {
     id: string,
     body: {
       title?: string;
+      company_id?: string | null;
       sku?: string;
       product_type?: string;
-      price?: number;
-      price_old?: number;
+      price?: number | null;
+      price_old?: number | null;
       coupon?: string;
       status?: string;
       page_title?: string;
@@ -390,6 +413,9 @@ export const tenantApi = {
       sizes?: string[];
       shipping_country?: string;
       images?: string[];
+      tags?: string[];
+      vendor?: string;
+      integration_slugs?: string[];
       variants?: ProductVariant[];
     }
   ) =>
@@ -399,4 +425,6 @@ export const tenantApi = {
     }),
   deleteProduct: (id: string) =>
     api<{ message: string }>(`/api/tenant/products/${id}`, { method: "DELETE" }),
+  pushProductToShopify: (id: string) =>
+    api<Product>(`/api/tenant/products/${id}/push-to-shopify`, { method: "POST" }),
 };
