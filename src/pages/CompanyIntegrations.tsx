@@ -19,6 +19,11 @@ export default function CompanyIntegrations() {
   const [formIntegrationId, setFormIntegrationId] = useState("");
   const [formCredentials, setFormCredentials] = useState<Record<string, string>>({});
   const [formActive, setFormActive] = useState(true);
+  const [formFeatures, setFormFeatures] = useState<{ orders: boolean; products: boolean; inventory: boolean }>({
+    orders: true,
+    products: true,
+    inventory: true,
+  });
   const [saving, setSaving] = useState(false);
   const formContainerRef = useRef<HTMLDivElement>(null);
 
@@ -52,6 +57,7 @@ export default function CompanyIntegrations() {
     setFormIntegrationId("");
     setFormCredentials({});
     setFormActive(true);
+    setFormFeatures({ orders: true, products: true, inventory: true });
     setFormVisible(true);
   };
 
@@ -61,6 +67,12 @@ export default function CompanyIntegrations() {
     setFormIntegrationId(ci.integration_id);
     setFormCredentials(ci.credentials || {});
     setFormActive(ci.status === 1);
+    const features = Array.isArray(ci.features) ? ci.features : ["orders", "products", "inventory"];
+    setFormFeatures({
+      orders: features.includes("orders"),
+      products: features.includes("products"),
+      inventory: features.includes("inventory"),
+    });
     setFormVisible(true);
   };
 
@@ -79,12 +91,22 @@ export default function CompanyIntegrations() {
     e.preventDefault();
     setError("");
     setSaving(true);
+    const selectedFeatures: string[] = [];
+    if (formFeatures.orders) selectedFeatures.push("orders");
+    if (formFeatures.products) selectedFeatures.push("products");
+    if (formFeatures.inventory) selectedFeatures.push("inventory");
+    if (selectedFeatures.length === 0) {
+      setError("Select at least one feature: Orders, Products, or Inventory.");
+      setSaving(false);
+      return;
+    }
     try {
       if (editing) {
         await tenantApi.updateCompanyIntegration(editing.id, {
           company_id: formCompanyId || undefined,
           credentials: formCredentials,
           status: formActive ? 1 : 0,
+          features: selectedFeatures,
         });
       } else {
         if (!formCompanyId) {
@@ -102,6 +124,7 @@ export default function CompanyIntegrations() {
           integration_id: formIntegrationId,
           credentials: formCredentials,
           status: formActive ? 1 : 0,
+          features: selectedFeatures,
         });
       }
       closeForm();
@@ -250,9 +273,42 @@ export default function CompanyIntegrations() {
                     </div>
                   </div>
                 )}
-                <div className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/50 p-5 dark:border-gray-800 dark:bg-gray-800/30">
-                  <Checkbox checked={formActive} onChange={setFormActive} />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Active (order import will run for this integration)</span>
+                <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-5 space-y-3 dark:border-gray-800 dark:bg-gray-800/30">
+                  <div className="flex items-center gap-2">
+                    <Checkbox checked={formActive} onChange={setFormActive} />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      Active (sync jobs will run for this integration)
+                    </span>
+                  </div>
+                  <div>
+                    <Label className="text-sm">Features</Label>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Choose what this integration should handle for the company.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-4">
+                      <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <Checkbox
+                          checked={formFeatures.orders}
+                          onChange={(v) => setFormFeatures((prev) => ({ ...prev, orders: v }))}
+                        />
+                        <span>Orders</span>
+                      </label>
+                      <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <Checkbox
+                          checked={formFeatures.products}
+                          onChange={(v) => setFormFeatures((prev) => ({ ...prev, products: v }))}
+                        />
+                        <span>Products</span>
+                      </label>
+                      <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <Checkbox
+                          checked={formFeatures.inventory}
+                          onChange={(v) => setFormFeatures((prev) => ({ ...prev, inventory: v }))}
+                        />
+                        <span>Inventory</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="mt-8 flex justify-end gap-2 border-t border-gray-200 pt-6 dark:border-gray-700">

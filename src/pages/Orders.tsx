@@ -106,10 +106,12 @@ export default function Orders() {
     setError("");
     setBackfillSuccess(null);
     try {
+      const orderParams: { company_id?: string; sort?: string } = { sort: orderSort };
+      if (companyFilter) orderParams.company_id = companyFilter;
       const [companiesRes, ordersRes, consignmentsRes, carriersRes] = await Promise.all([
         tenantApi.getCompanies(),
-        tenantApi.getOrders(),
-        tenantApi.getConsignments(),
+        tenantApi.getOrders(orderParams),
+        tenantApi.getConsignments(companyFilter ? { company_id: companyFilter } : undefined),
         tenantApi.getCarrierIntegrations(),
       ]);
       setCompanies(Array.isArray(companiesRes?.companies) ? companiesRes.companies : []);
@@ -125,7 +127,7 @@ export default function Orders() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [companyFilter, orderSort]);
 
   const loadCarrierServices = async (carrierIntegrationId: string) => {
     if (!carrierIntegrationId) {

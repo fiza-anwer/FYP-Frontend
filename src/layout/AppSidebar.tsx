@@ -48,6 +48,13 @@ const tenantNavItems: NavItem[] = [
     subItems: [{ name: "Products", path: "/products", pro: false }],
   },
   {
+    icon: <TableIcon />,
+    name: "Inventory management",
+    iconColor: "text-sky-500 group-hover:text-sky-600 dark:text-sky-400",
+    iconColorActive: "text-sky-600 dark:text-sky-400",
+    subItems: [{ name: "Inventory", path: "/inventory", pro: false }],
+  },
+  {
     icon: <PlugInIcon />,
     name: "Setup",
     iconColor: "text-violet-500 group-hover:text-violet-600 dark:text-violet-400",

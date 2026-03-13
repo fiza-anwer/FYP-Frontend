@@ -148,6 +148,8 @@ export type CompanyIntegration = {
   integration_slug?: string;
   credentials?: Record<string, unknown>;
   status?: number;
+   /** Features enabled for this integration: orders, products, inventory */
+  features?: string[];
   company_name?: string;
   created_at?: string;
   updated_at?: string;
@@ -218,6 +220,9 @@ export type Product = {
   source?: string;
   price?: number | null;
   price_old?: number | null;
+  quantity?: number;
+  allocated?: number;
+  shopify_synced?: boolean;
   coupon?: string | null;
   page_title?: string | null;
   handle?: string | null;
@@ -231,6 +236,23 @@ export type Product = {
   variants?: ProductVariant[];
   variant_count?: number;
   created_at?: string;
+  updated_at?: string;
+};
+
+export type InventoryRow = {
+  product_id: string;
+  title: string;
+  sku: string;
+  quantity: number;
+  allocated: number;
+  shopify_synced: boolean;
+};
+
+export type InventoryItem = {
+  id: string;
+  product_id: string;
+  quantity: number;
+  allocated: number;
   updated_at?: string;
 };
 
@@ -309,14 +331,28 @@ export const tenantApi = {
     api<{ integrations: Array<{ id: string; name: string; slug: string; credentials_schema: IntegrationCredentialSchema[] }> }>("/api/tenant/integrations"),
   getCompanyIntegrations: () =>
     api<{ company_integrations: CompanyIntegration[] }>("/api/tenant/company-integrations"),
-  createCompanyIntegration: (body: { company_id: string; integration_id: string; credentials?: Record<string, unknown>; status?: number }) =>
+  createCompanyIntegration: (body: {
+    company_id: string;
+    integration_id: string;
+    credentials?: Record<string, unknown>;
+    status?: number;
+    features?: string[];
+  }) =>
     api<CompanyIntegration>("/api/tenant/company-integrations", { method: "POST", body: JSON.stringify(body) }),
-  updateCompanyIntegration: (id: string, body: { company_id?: string; credentials?: Record<string, unknown>; status?: number }) =>
+  updateCompanyIntegration: (id: string, body: {
+    company_id?: string;
+    credentials?: Record<string, unknown>;
+    status?: number;
+    features?: string[];
+  }) =>
     api<CompanyIntegration>(`/api/tenant/company-integrations/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteCompanyIntegration: (id: string) =>
     api<{ message: string }>(`/api/tenant/company-integrations/${id}`, { method: "DELETE" }),
-  getOrders: (params?: { company_id?: string }) => {
-    const q = params?.company_id ? `?company_id=${encodeURIComponent(params.company_id)}` : "";
+  getOrders: (params?: { company_id?: string; sort?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.company_id) searchParams.set("company_id", params.company_id);
+    if (params?.sort?.trim()) searchParams.set("sort", params.sort.trim());
+    const q = searchParams.toString() ? `?${searchParams.toString()}` : "";
     return api<{ orders: Order[] }>(`/api/tenant/orders${q}`);
   },
   getConsignments: (params?: { order_id?: string; company_id?: string }) => {
@@ -367,8 +403,18 @@ export const tenantApi = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  getProducts: (params?: { company_id?: string }) => {
-    const q = params?.company_id ? `?company_id=${encodeURIComponent(params.company_id)}` : "";
+  getProducts: (params?: {
+    company_id?: string;
+    search?: string;
+    product_type?: string;
+    sort?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.company_id) searchParams.set("company_id", params.company_id);
+    if (params?.search?.trim()) searchParams.set("search", params.search.trim());
+    if (params?.product_type?.trim()) searchParams.set("product_type", params.product_type.trim());
+    if (params?.sort?.trim()) searchParams.set("sort", params.sort.trim());
+    const q = searchParams.toString() ? `?${searchParams.toString()}` : "";
     return api<{ products: Product[] }>(`/api/tenant/products${q}`);
   },
   createProduct: (body: {
@@ -427,4 +473,32 @@ export const tenantApi = {
     api<{ message: string }>(`/api/tenant/products/${id}`, { method: "DELETE" }),
   pushProductToShopify: (id: string) =>
     api<Product>(`/api/tenant/products/${id}/push-to-shopify`, { method: "POST" }),
+  getInventory: (params?: {
+    company_id?: string;
+    search?: string;
+    product_type?: string;
+    sort?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.company_id) searchParams.set("company_id", params.company_id);
+    if (params?.search?.trim()) searchParams.set("search", params.search.trim());
+    if (params?.product_type?.trim()) searchParams.set("product_type", params.product_type.trim());
+    if (params?.sort?.trim()) searchParams.set("sort", params.sort.trim());
+    const q = searchParams.toString() ? `?${searchParams.toString()}` : "";
+    return api<{ inventory: InventoryRow[] }>(`/api/tenant/inventory${q}`);
+  },
+  getInventoryByProduct: (productId: string) =>
+    api<InventoryItem | null>(`/api/tenant/inventory/${productId}`),
+  syncAll: () =>
+    api<{
+      products_imported: number;
+      orders_imported: number;
+      inventory_synced: number;
+      errors: Array<{ scope: string; error: string }>;
+    }>("/api/tenant/sync", { method: "POST" }),
+  patchInventory: (productId: string, body: { quantity: number }) =>
+    api<{ quantity: number; allocated: number }>(`/api/tenant/inventory/${productId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
 };

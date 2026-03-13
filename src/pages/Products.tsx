@@ -93,16 +93,18 @@ export default function Products() {
     setError("");
     setLoading(true);
     try {
-      const res = await tenantApi.getProducts(
-        companyFilter ? { company_id: companyFilter } : undefined
-      );
+      const params: { company_id?: string; product_type?: string; sort?: string } = {};
+      if (companyFilter) params.company_id = companyFilter;
+      if (typeFilter.trim()) params.product_type = typeFilter.trim();
+      params.sort = sort;
+      const res = await tenantApi.getProducts(params);
       setProducts(Array.isArray(res?.products) ? res.products : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load products");
     } finally {
       setLoading(false);
     }
-  }, [companyFilter]);
+  }, [companyFilter, typeFilter, sort]);
 
   useEffect(() => {
     void load();
@@ -375,8 +377,10 @@ export default function Products() {
         return normalized === statusFilter;
       });
     }
-    if (typeFilter)
-      list = list.filter((row) => (row.product.product_type ?? "").toLowerCase() === typeFilter.toLowerCase());
+    if (typeFilter.trim()) {
+      const typeLower = typeFilter.trim().toLowerCase();
+      list = list.filter((row) => (row.product.product_type ?? "").trim().toLowerCase() === typeLower);
+    }
     const rowPrice = (row: ProductListRow) => row.variant?.price ?? row.product.price ?? 0;
     switch (sort) {
       case "name_asc":
@@ -411,12 +415,16 @@ export default function Products() {
   }, [flattenedRows, search, statusFilter, typeFilter, sort]);
 
   const uniqueTypes = useMemo(() => {
-    const set = new Set<string>();
+    const byLower = new Map<string, string>();
+    const capitalize = (s: string) => (s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1).toLowerCase());
     products.forEach((p) => {
       const t = (p.product_type ?? "").trim();
-      if (t) set.add(t);
+      if (t) {
+        const key = t.toLowerCase();
+        if (!byLower.has(key)) byLower.set(key, capitalize(t));
+      }
     });
-    return Array.from(set).sort();
+    return Array.from(byLower.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   }, [products]);
 
   const columns: DataGridColumn<ProductListRow>[] = [
@@ -489,6 +497,15 @@ export default function Products() {
       },
     },
     {
+      key: "quantity",
+      label: "Quantity",
+      align: "right",
+      render: (_, row) => {
+        const q = row.product.quantity;
+        return typeof q === "number" ? q : 0;
+      },
+    },
+    {
       key: "status",
       label: "Status",
       render: (_, row) => {
@@ -498,14 +515,20 @@ export default function Products() {
       },
     },
     {
-      key: "source",
-      label: "Synced to",
+      key: "shopify_synced",
+      label: "Shopify status",
       render: (_, row) =>
-        row.product.source === "shopify"
-          ? "Shopify"
-          : row.product.company_id
-            ? "Not synced"
-            : "—",
+        row.product.shopify_synced ? (
+          <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
+            Synced
+          </span>
+        ) : row.product.company_id ? (
+          <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+            Not synced
+          </span>
+        ) : (
+          "—"
+        ),
     },
   ];
 

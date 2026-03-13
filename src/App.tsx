@@ -14,9 +14,11 @@ import CarrierIntegrations from "./pages/CarrierIntegrations";
 import CarrierIntegrationServices from "./pages/CarrierIntegrationServices";
 import Consignments from "./pages/Consignments";
 import Products from "./pages/Products";
+import Inventory from "./pages/Inventory";
+import InventoryAdjust from "./pages/InventoryAdjust";
 import SuperadminTenants from "./pages/Superadmin/Tenants";
 import { setOnUnauthorized } from "./api/client";
-import { useAuth } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
 function AppRoutes() {
   const { logout } = useAuth();
@@ -43,6 +45,8 @@ function AppRoutes() {
           <Route path="/carrier-integrations" element={<CarrierIntegrations />} />
           <Route path="/carrier-integration-services" element={<CarrierIntegrationServices />} />
           <Route path="/products" element={<Products />} />
+          <Route path="/inventory" element={<Inventory />} />
+          <Route path="/inventory/:productId/adjust" element={<InventoryAdjust />} />
           <Route path="/superadmin/tenants" element={<SuperadminTenants />} />
         </Route>
       </Route>
@@ -54,9 +58,11 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <Router>
-      <ScrollToTop />
-      <AppRoutes />
-    </Router>
+    <AuthProvider>
+      <Router>
+        <ScrollToTop />
+        <AppRoutes />
+      </Router>
+    </AuthProvider>
   );
 }

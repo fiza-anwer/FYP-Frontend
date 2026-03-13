@@ -21,18 +21,15 @@ async function loadAndRender() {
     const { default: App } = await import("./App.tsx");
     const { AppWrapper } = await import("./components/common/PageMeta.tsx");
     const { ThemeProvider } = await import("./context/ThemeContext.tsx");
-    const { AuthProvider } = await import("./context/AuthContext.tsx");
     const { ErrorBoundary } = await import("./components/common/ErrorBoundary.tsx");
 
     createRoot(root).render(
       <StrictMode>
         <ErrorBoundary>
           <ThemeProvider>
-            <AuthProvider>
-              <AppWrapper>
-                <App />
-              </AppWrapper>
-            </AuthProvider>
+            <AppWrapper>
+              <App />
+            </AppWrapper>
           </ThemeProvider>
         </ErrorBoundary>
       </StrictMode>,
