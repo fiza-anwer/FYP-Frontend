@@ -15,7 +15,9 @@ import Label from "../components/form/Label";
 import TextArea from "../components/form/input/TextArea";
 import Radio from "../components/form/input/Radio";
 import Checkbox from "../components/form/input/Checkbox";
-import { PlusIcon, TrashBinIcon } from "../icons";
+import { Dropdown } from "../components/ui/dropdown/Dropdown";
+import { DropdownItem } from "../components/ui/dropdown/DropdownItem";
+import { HorizontaLDots, PlusIcon, TrashBinIcon } from "../icons";
 
 type SortKey = "name_asc" | "name_desc" | "price_asc" | "price_desc" | "newest" | "oldest";
 
@@ -30,37 +32,7 @@ function getRowId(row: ProductListRow): string {
   return `${row.product.id}-${row.variantIndex}-${row.variant?.id ?? "0"}`;
 }
 
-function normalizeImageUrls(images: unknown): string[] {
-  const values = Array.isArray(images) ? images : typeof images === "string" ? images.split(/\r?\n/) : [];
-  return values
-    .map((image) => {
-      if (typeof image === "string") return image.trim();
-      if (!image || typeof image !== "object") return "";
-      const candidate = image as Record<string, unknown>;
-      const url = candidate.src ?? candidate.url ?? candidate.originalSrc;
-      return typeof url === "string" ? url.trim() : "";
-    })
-    .filter(Boolean);
-}
-
 const SIZE_OPTIONS = ["XS", "S", "M", "L", "XL"];
-const SHIPPING_COUNTRIES = [
-  { value: "", label: "Select country/region" },
-  { value: "US", label: "United States" },
-  { value: "CA", label: "Canada" },
-  { value: "GB", label: "United Kingdom" },
-  { value: "AU", label: "Australia" },
-  { value: "DE", label: "Germany" },
-  { value: "FR", label: "France" },
-  { value: "IN", label: "India" },
-  { value: "PK", label: "Pakistan" },
-  { value: "AE", label: "United Arab Emirates" },
-  { value: "SG", label: "Singapore" },
-  { value: "MY", label: "Malaysia" },
-  { value: "JP", label: "Japan" },
-  { value: "CN", label: "China" },
-  { value: "EU", label: "European Union (general)" },
-];
 
 function companyWillSyncToStores(
   companyId: string,
@@ -113,19 +85,14 @@ function validateDarazImageUrls(images: string[]): string | null {
 function emptyForm() {
   return {
     title: "",
-    page_title: "",
-    meta_description: "",
-    handle: "",
     description: "",
     sku: "",
     product_type: "",
     price: "",
     price_old: "",
     quantity: "",
-    coupon: "",
     status: "active" as "active" | "draft" | "archived",
     sizes: [] as string[],
-    shipping_country: "",
     images: [] as string[],
     tags: [] as string[],
     vendor: "",
@@ -154,16 +121,7 @@ export default function Products() {
   const [editingVariantIndex, setEditingVariantIndex] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
-  const [bulkEditVisible, setBulkEditVisible] = useState(false);
-  const [bulkEditSaving, setBulkEditSaving] = useState(false);
-  const [bulkEditForm, setBulkEditForm] = useState({
-    product_type: "",
-    status: "",
-    vendor: "",
-    price: "",
-    price_old: "",
-  });
+  const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyIntegrations, setCompanyIntegrations] = useState<CompanyIntegration[]>([]);
   const [companyFilter, setCompanyFilter] = useState("");
@@ -246,12 +204,12 @@ export default function Products() {
       .then((cfg) => {
         setAiConfigured(cfg.configured);
         setAiModels(cfg.models || []);
-        setAiModel(cfg.model || cfg.models?.[0] || "gemini-2.5-flash");
+        setAiModel(cfg.model || cfg.models?.[0] || "gemini-2.5-flash-lite");
       })
       .catch(() => {
         setAiConfigured(false);
-        setAiModels(["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]);
-        setAiModel("gemini-2.5-flash");
+        setAiModels(["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-flash-latest"]);
+        setAiModel("gemini-2.5-flash-lite");
       })
       .finally(() => setAiConfigLoading(false));
   }, [aiKeywordsOpen]);
@@ -274,20 +232,20 @@ export default function Products() {
         setAiModel(model_used);
       }
       setAiKeywordsOpen(false);
+      // Empty integration_slugs = publish to ALL connected platforms (Shopify + Daraz).
       openCreateForm({
         ...emptyForm(),
         company_id: aiCompanyId,
+        integration_slugs: [],
         title: listing.title,
-        page_title: listing.page_title,
-        meta_description: listing.meta_description,
-        handle: listing.handle,
         description: listing.description,
-        sku: listing.sku,
-        product_type: listing.product_type,
+        sku: (listing.sku || "").trim() || `US-${Date.now().toString(36).toUpperCase()}`,
+        product_type: (listing.product_type || "").trim() || "Accessories",
         price: listing.price != null ? String(listing.price) : "",
         price_old: listing.price_old != null ? String(listing.price_old) : "",
-        vendor: listing.vendor,
+        vendor: "",
         tags: listing.tags ?? [],
+        quantity: "5",
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "AI listing failed");
@@ -312,20 +270,15 @@ export default function Products() {
     const displayPriceOld = p.price_old;
     setForm({
       title: p.title ?? "",
-      page_title: p.page_title ?? "",
-      meta_description: p.meta_description ?? "",
-      handle: p.handle ?? "",
       description: p.description ?? "",
       sku: p.sku ?? "",
       product_type: p.product_type ?? "",
       price: displayPrice != null ? String(displayPrice) : "",
       price_old: displayPriceOld != null ? String(displayPriceOld) : "",
       quantity: p.quantity != null ? String(p.quantity) : "",
-      coupon: p.coupon ?? "",
       status: (["active", "draft", "archived"].includes(String(p.status || "")) ? (p.status as "active" | "draft" | "archived") : (p.status === "published" ? "active" : p.status === "scheduled" ? "draft" : p.status === "hidden" ? "archived" : "active")) as "active" | "draft" | "archived",
       sizes: Array.isArray(p.sizes) ? p.sizes : [],
-      shipping_country: p.shipping_country ?? "",
-      images: normalizeImageUrls(p.images),
+      images: Array.isArray(p.images) ? p.images : [],
       tags: Array.isArray(p.tags) ? p.tags : [],
       vendor: p.vendor ?? "",
       company_id: p.company_id ?? "",
@@ -333,7 +286,7 @@ export default function Products() {
       variants: singleVariant,
     });
     setFormVisible(true);
-    setSelectedRowIds([]);
+    setActionsOpenId(null);
   };
 
   const closeForm = () => {
@@ -341,26 +294,6 @@ export default function Products() {
     setEditing(null);
     setEditingVariantIndex(null);
   };
-
-  useEffect(() => {
-    if (!formVisible) return;
-    const handleBackspace = (event: KeyboardEvent) => {
-      if (event.key !== "Backspace") return;
-      const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        (target.isContentEditable ||
-          target.closest("input, textarea, select, [contenteditable='true']"))
-      ) {
-        return;
-      }
-      event.preventDefault();
-      closeForm();
-    };
-
-    document.addEventListener("keydown", handleBackspace);
-    return () => document.removeEventListener("keydown", handleBackspace);
-  }, [formVisible]);
 
   const toggleSize = (size: string) => {
     setForm((prev) => ({
@@ -427,16 +360,12 @@ export default function Products() {
       );
       return;
     }
+    if (willSyncToStores && !form.sku.trim()) {
+      setError("SKU is required when publishing to Shopify/Daraz (Daraz uses it as Seller SKU).");
+      return;
+    }
     const wantsDaraz = darazTargetsForForm(form.company_id, form.integration_slugs, companyIntegrations);
     if (wantsDaraz) {
-      if (!categoryTrimmed) {
-        setError("Category is required for Daraz (e.g. Jewellery, T-Shirts).");
-        return;
-      }
-      if (!form.sku.trim()) {
-        setError("SKU is required to sync to Daraz.");
-        return;
-      }
       const imgErr = validateDarazImageUrls(form.images);
       if (imgErr) {
         setError(imgErr);
@@ -468,21 +397,15 @@ export default function Products() {
         const updatePayload = {
           title,
           company_id: form.company_id.trim() || null,
-          page_title: form.page_title.trim() || undefined,
-          meta_description: form.meta_description.trim() || undefined,
-          handle: form.handle.trim() || undefined,
           description: form.description.trim() || undefined,
           sku: form.sku.trim() || undefined,
           product_type: form.product_type.trim() || undefined,
           price: price !== null ? price : null,
           price_old: price_old !== null ? price_old : null,
-          coupon: form.coupon.trim() || undefined,
           status: form.status,
           sizes: form.sizes.length ? form.sizes : undefined,
-          shipping_country: form.shipping_country || undefined,
           images: form.images.length ? form.images : undefined,
           tags: form.tags.length ? form.tags : undefined,
-          vendor: form.vendor.trim() || undefined,
           integration_slugs: form.integration_slugs,
           variants: variantsToSend,
         };
@@ -506,33 +429,37 @@ export default function Products() {
         const created = await tenantApi.createProduct({
           title,
           company_id: form.company_id.trim() || undefined,
-          page_title: form.page_title.trim() || undefined,
-          meta_description: form.meta_description.trim() || undefined,
-          handle: form.handle.trim() || undefined,
           description: form.description.trim() || undefined,
           sku: form.sku.trim() || undefined,
           product_type: form.product_type.trim() || undefined,
           price: price !== null ? price : undefined,
           price_old: price_old !== null ? price_old : undefined,
-          coupon: form.coupon.trim() || undefined,
           status: form.status,
           sizes: form.sizes.length ? form.sizes : undefined,
-          shipping_country: form.shipping_country || undefined,
           images: form.images.length ? form.images : undefined,
           tags: form.tags.length ? form.tags : undefined,
-          vendor: form.vendor.trim() || undefined,
+          vendor: wantsDaraz ? "No Brand" : undefined,
           integration_slugs: form.integration_slugs,
           source: "local",
           quantity: stockQty != null ? stockQty : undefined,
           variants: variants.length ? variants : undefined,
-        }) as Product & { category_warning?: string; daraz_sync_warning?: string };
-        const warn = created?.category_warning || created?.daraz_sync_warning;
-        if (warn) {
-          setSyncWarning(
-            created?.daraz_sync_warning ? `Daraz sync: ${created.daraz_sync_warning}` : warn
-          );
+        }) as Product & {
+          category_warning?: string;
+          daraz_sync_warning?: string;
+          shopify_sync_warning?: string;
+          shopify_synced?: boolean;
+          daraz_synced?: boolean;
+        };
+        const parts: string[] = [];
+        if (created?.shopify_synced) parts.push("Shopify ✓");
+        if (created?.daraz_synced) parts.push("Daraz ✓");
+        if (created?.shopify_sync_warning) parts.push(`Shopify: ${created.shopify_sync_warning}`);
+        if (created?.daraz_sync_warning) parts.push(`Daraz: ${created.daraz_sync_warning}`);
+        if (created?.category_warning) parts.push(created.category_warning);
+        if (parts.length) {
+          setSyncWarning(parts.join(" · "));
         } else if (created?.company_id) {
-          setSyncWarning("Product saved.");
+          setSyncWarning("Product saved locally (no channel sync ran).");
         } else {
           setSyncWarning(null);
         }
@@ -545,6 +472,51 @@ export default function Products() {
       setSyncWarning(null);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePushToShopify = async (p: Product) => {
+    setActionsOpenId(null);
+    setError("");
+    try {
+      const data = await tenantApi.pushProductToShopify(p.id) as Product & { category_warning?: string };
+      if (data?.category_warning) setSyncWarning(data.category_warning);
+      else setSyncWarning(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Push to Shopify failed.");
+      setSyncWarning(null);
+    }
+  };
+
+  const handlePushToDaraz = async (p: Product) => {
+    setActionsOpenId(null);
+    setError("");
+    setSyncWarning(null);
+    const imgs = Array.isArray(p.images) ? p.images : [];
+    const imgErr = validateDarazImageUrls(imgs);
+    if (imgErr) {
+      setError(imgErr);
+      return;
+    }
+    try {
+      const data = await tenantApi.pushProductToDaraz(p.id);
+      setSyncWarning(data?.message || "Product synced to Daraz.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Push to Daraz failed.");
+    }
+  };
+
+  const handleDelete = async (p: Product) => {
+    setActionsOpenId(null);
+    if (!window.confirm(`Delete product "${p.title}"?`)) return;
+    setError("");
+    try {
+      await tenantApi.deleteProduct(p.id);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed.");
     }
   };
 
@@ -638,130 +610,51 @@ export default function Products() {
     return Array.from(byLower.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   }, [products]);
 
-  const selectedRows = useMemo(
-    () => flattenedRows.filter((row) => selectedRowIds.includes(getRowId(row))),
-    [flattenedRows, selectedRowIds]
-  );
-  const selectedProducts = useMemo(
-    () => Array.from(new Map(selectedRows.map((row) => [row.product.id, row.product])).values()),
-    [selectedRows]
-  );
-
-  const handlePushToShopify = async (product: Product) => {
-    setError("");
-    try {
-      const data = await tenantApi.pushProductToShopify(product.id) as Product & { category_warning?: string };
-      setSyncWarning(data?.category_warning ?? null);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Push to Shopify failed.");
-      setSyncWarning(null);
-    }
-  };
-
-  const handlePushToDaraz = async (product: Product) => {
-    setError("");
-    setSyncWarning(null);
-    const imageError = validateDarazImageUrls(Array.isArray(product.images) ? product.images : []);
-    if (imageError) {
-      setError(imageError);
-      return;
-    }
-    try {
-      const result = await tenantApi.pushProductToDaraz(product.id);
-      setSyncWarning(result?.message || "Product synced to Daraz.");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Push to Daraz failed.");
-    }
-  };
-
-  const handleSelectionEdit = () => {
-    if (selectedProducts.length !== 1) {
-      setBulkEditForm({ product_type: "", status: "", vendor: "", price: "", price_old: "" });
-      setBulkEditVisible(true);
-      return;
-    }
-    const row = selectedRows[0];
-    openEdit(selectedProducts[0], selectedRows.length === 1 ? row.variantIndex : undefined);
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedProducts.length === 0) return;
-    const names = selectedProducts.slice(0, 3).map((product) => `"${product.title}"`).join(", ");
-    const remaining = selectedProducts.length > 3 ? ` and ${selectedProducts.length - 3} more` : "";
-    if (!window.confirm(`Delete ${selectedProducts.length} selected product(s): ${names}${remaining}?`)) return;
-
-    setError("");
-    const results = await Promise.allSettled(
-      selectedProducts.map((product) => tenantApi.deleteProduct(product.id))
-    );
-    const failed = results.filter((result) => result.status === "rejected");
-    setSelectedRowIds([]);
-    await load();
-    if (failed.length > 0) {
-      const firstFailure = failed[0];
-      setError(
-        `${failed.length} product(s) could not be deleted.${firstFailure.status === "rejected" && firstFailure.reason instanceof Error ? ` ${firstFailure.reason.message}` : ""}`
-      );
-    }
-  };
-
-  const handleBulkEdit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (bulkEditSaving || selectedProducts.length === 0) return;
-
-    const fields = bulkEditForm;
-    const price = fields.price.trim() ? Number(fields.price) : undefined;
-    const priceOld = fields.price_old.trim() ? Number(fields.price_old) : undefined;
-    if (price !== undefined && (!Number.isFinite(price) || price < 0)) {
-      setError("Enter a valid non-negative price.");
-      return;
-    }
-    if (priceOld !== undefined && (!Number.isFinite(priceOld) || priceOld < 0)) {
-      setError("Enter a valid non-negative original price.");
-      return;
-    }
-
-    const update: {
-      product_type?: string;
-      status?: string;
-      vendor?: string;
-      price?: number;
-      price_old?: number;
-    } = {};
-    if (fields.product_type.trim()) update.product_type = fields.product_type.trim();
-    if (fields.status) update.status = fields.status;
-    if (fields.vendor.trim()) update.vendor = fields.vendor.trim();
-    if (price !== undefined) update.price = price;
-    if (priceOld !== undefined) update.price_old = priceOld;
-    if (Object.keys(update).length === 0) {
-      setError("Choose at least one field to update.");
-      return;
-    }
-
-    setError("");
-    setBulkEditSaving(true);
-    try {
-      const results = await Promise.allSettled(
-        selectedProducts.map((product) => tenantApi.updateProduct(product.id, update))
-      );
-      const failed = results.filter((result) => result.status === "rejected");
-      setSelectedRowIds([]);
-      setBulkEditVisible(false);
-      await load();
-      if (failed.length > 0) {
-        const firstFailure = failed[0];
-        setError(
-          `${failed.length} product(s) could not be updated.${firstFailure.status === "rejected" && firstFailure.reason instanceof Error ? ` ${firstFailure.reason.message}` : ""}`
-        );
-      }
-    } finally {
-      setBulkEditSaving(false);
-    }
-  };
-
   const columns: DataGridColumn<ProductListRow>[] = [
+    {
+      key: "actions",
+      label: "",
+      render: (_, row) => {
+        const rowId = getRowId(row);
+        return (
+          <div className="relative inline-block">
+            <button
+              type="button"
+              onClick={() => setActionsOpenId(actionsOpenId === rowId ? null : rowId)}
+              className="dropdown-toggle rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+              aria-label="Actions"
+            >
+              <HorizontaLDots className="h-5 w-5" />
+            </button>
+            <Dropdown
+              isOpen={actionsOpenId === rowId}
+              onClose={() => setActionsOpenId(null)}
+              className="left-0 right-auto min-w-[120px]"
+            >
+              <DropdownItem onClick={() => openEdit(row.product, row.variantIndex)}>Edit</DropdownItem>
+              {getProductPushTargets(row.product, companyIntegrations).includes("shopify") &&
+                !row.product.shopify_synced && (
+                  <DropdownItem onClick={() => handlePushToShopify(row.product)}>
+                    Push to Shopify
+                  </DropdownItem>
+                )}
+              {getProductPushTargets(row.product, companyIntegrations).includes("daraz") &&
+                !row.product.daraz_synced && (
+                  <DropdownItem onClick={() => handlePushToDaraz(row.product)}>
+                    Push to Daraz
+                  </DropdownItem>
+                )}
+              <DropdownItem
+                onClick={() => handleDelete(row.product)}
+                className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20"
+              >
+                Delete
+              </DropdownItem>
+            </Dropdown>
+          </div>
+        );
+      },
+    },
     { key: "title", label: "Product", render: (_, row) => String(row.product.title || "—") },
     {
       key: "sku",
@@ -934,15 +827,6 @@ export default function Products() {
                           Starting inventory for this product. You can adjust it later from Inventory.
                         </p>
                       </div>
-                      <div>
-                        <Label>Product coupon / discount code</Label>
-                        <Input
-                          value={form.coupon}
-                          onChange={(e) => setForm((f) => ({ ...f, coupon: e.target.value }))}
-                          placeholder="e.g. SAVE10"
-                          className="mt-1.5"
-                        />
-                      </div>
                     </div>
                   </section>
 
@@ -1080,7 +964,7 @@ export default function Products() {
                       </div>
                       <div>
                         <Label>
-                          Category
+                          Category (Shopify product type + Daraz category)
                           {companyWillSyncToStores(form.company_id, form.integration_slugs, companyIntegrations) && (
                             <span className="ml-1 text-rose-600 dark:text-rose-400">*</span>
                           )}
@@ -1088,73 +972,44 @@ export default function Products() {
                         <Input
                           value={form.product_type}
                           onChange={(e) => setForm((f) => ({ ...f, product_type: e.target.value }))}
-                          placeholder="e.g. Laptops, Jewellery, Trousers, T-Shirts"
+                          placeholder="e.g. Jewellery, T-Shirts, Mobile Accessories"
                           className="mt-1.5"
                           list="category-suggestions"
+                          required={companyWillSyncToStores(form.company_id, form.integration_slugs, companyIntegrations)}
                         />
                         <datalist id="category-suggestions">
-                          <option value="Laptops" />
                           <option value="Jewellery" />
-                          <option value="Trousers" />
                           <option value="T-Shirts" />
-                          <option value="Accessories" />
+                          <option value="Trousers" />
+                          <option value="Mobile Accessories" />
+                          <option value="Laptops" />
+                          <option value="Beauty" />
+                          <option value="Bags" />
+                          <option value="Shoes" />
                           <option value="Electronics" />
+                          <option value="Accessories" />
                         </datalist>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          Maps to marketplace categories on connected stores (e.g. Jewellery, T-Shirts).
-                          Required when publishing to any connected store.
+                          Same value is sent to Shopify (product type) and used to pick a Daraz category. Required when the company has stores connected.
                         </p>
                       </div>
                       <div>
-                        <Label>URL handle</Label>
+                        <Label>
+                          SKU
+                          {companyWillSyncToStores(form.company_id, form.integration_slugs, companyIntegrations) && (
+                            <span className="ml-1 text-rose-600 dark:text-rose-400">*</span>
+                          )}
+                        </Label>
                         <Input
-                          value={form.handle}
-                          onChange={(e) => setForm((f) => ({ ...f, handle: e.target.value }))}
-                          placeholder="e.g. classic-cotton-tshirt"
+                          value={form.sku}
+                          onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
+                          placeholder="e.g. TSH-001 (Daraz Seller SKU)"
                           className="mt-1.5"
+                          required={companyWillSyncToStores(form.company_id, form.integration_slugs, companyIntegrations)}
                         />
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          Used in product page URL. Leave blank to auto-generate from title.
+                          Used on Shopify variants and as Daraz Seller SKU.
                         </p>
-                      </div>
-                      <div>
-                        <Label>Page title (SEO meta title)</Label>
-                        <Input
-                          value={form.page_title}
-                          onChange={(e) => setForm((f) => ({ ...f, page_title: e.target.value }))}
-                          placeholder="e.g. Buy Classic Cotton T-Shirt Online"
-                          className="mt-1.5"
-                        />
-                      </div>
-                      <div>
-                        <Label>Meta description (SEO)</Label>
-                        <TextArea
-                          value={form.meta_description}
-                          onChange={(value) => setForm((f) => ({ ...f, meta_description: value }))}
-                          placeholder="Short description for search engines (max ~160 characters)"
-                          rows={2}
-                          className="mt-1.5"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>SKU</Label>
-                          <Input
-                            value={form.sku}
-                            onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
-                            placeholder="e.g. TSH-001"
-                            className="mt-1.5"
-                          />
-                        </div>
-                        <div>
-                          <Label>Brand / vendor</Label>
-                          <Input
-                            value={form.vendor}
-                            onChange={(e) => setForm((f) => ({ ...f, vendor: e.target.value }))}
-                            placeholder="e.g. My Brand"
-                            className="mt-1.5"
-                          />
-                        </div>
                       </div>
                       <div>
                         <Label>Tags (comma-separated)</Label>
@@ -1202,7 +1057,7 @@ export default function Products() {
                               <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30">
                                 <Label>Show this product on</Label>
                                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                  All platforms = every connected store for this company. Or choose specific channels only.
+                                  If this company has both Shopify and Daraz, &quot;All platforms&quot; creates the product on both when you save.
                                 </p>
                                 <div className="mt-3 space-y-2">
                                   <label className="flex items-center gap-2">
@@ -1325,21 +1180,6 @@ export default function Products() {
                   </section>
 
                   <section className="rounded-xl border border-gray-100 bg-gray-50/50 p-5 dark:border-gray-800 dark:bg-gray-800/30">
-                    <Label>Shipping country / region</Label>
-                    <select
-                      value={form.shipping_country}
-                      onChange={(e) => setForm((f) => ({ ...f, shipping_country: e.target.value }))}
-                      className="mt-1.5 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 pr-10 text-sm text-gray-800 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:focus:border-sky-500"
-                    >
-                      {SHIPPING_COUNTRIES.map((opt) => (
-                        <option key={opt.value || "empty"} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </section>
-
-                  <section className="rounded-xl border border-gray-100 bg-gray-50/50 p-5 dark:border-gray-800 dark:bg-gray-800/30">
                     <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                       Product images
                     </h3>
@@ -1347,27 +1187,6 @@ export default function Products() {
                       One URL per line. Must be a direct photo link (ends with .jpg or .png), not a
                       shop page. Tip: right‑click the photo → Copy image address.
                     </p>
-                    {form.images.length > 0 && (
-                      <div className="mb-3 flex flex-wrap gap-2">
-                        {form.images.map((imageUrl, index) => (
-                          <a
-                            key={`${imageUrl}-${index}`}
-                            href={imageUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block size-20 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
-                            aria-label={`Open product image ${index + 1}`}
-                          >
-                            <img
-                              src={imageUrl}
-                              alt={`${form.title || "Product"} image ${index + 1}`}
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                            />
-                          </a>
-                        ))}
-                      </div>
-                    )}
                     <TextArea
                       value={form.images.join("\n")}
                       onChange={(v) =>
@@ -1476,163 +1295,17 @@ export default function Products() {
             </div>
 
             <div className="rounded-2xl border border-gray-200/90 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900/50">
-              {selectedRowIds.length > 0 && (
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 dark:border-sky-900/60 dark:bg-sky-950/30">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                    {selectedRowIds.length} row(s) selected
-                    {selectedProducts.length !== selectedRowIds.length &&
-                      ` · ${selectedProducts.length} product(s)`}
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={handleSelectionEdit}
-                      className="rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600"
-                    >
-                      {selectedProducts.length === 1 ? "Edit" : "Bulk edit"}
-                    </button>
-                    {selectedProducts.length === 1 &&
-                      getProductPushTargets(selectedProducts[0], companyIntegrations).includes("shopify") &&
-                      !selectedProducts[0].shopify_synced && (
-                        <button
-                          type="button"
-                          onClick={() => void handlePushToShopify(selectedProducts[0])}
-                          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
-                        >
-                          Push to Shopify
-                        </button>
-                      )}
-                    {selectedProducts.length === 1 &&
-                      getProductPushTargets(selectedProducts[0], companyIntegrations).includes("daraz") &&
-                      !selectedProducts[0].daraz_synced && (
-                        <button
-                          type="button"
-                          onClick={() => void handlePushToDaraz(selectedProducts[0])}
-                          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
-                        >
-                          Push to Daraz
-                        </button>
-                      )}
-                    <button
-                      type="button"
-                      onClick={() => void handleBulkDelete()}
-                      className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:bg-gray-900 dark:text-rose-300 dark:hover:bg-rose-900/20"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              )}
               <DataGrid
                 columns={columns}
                 data={filteredAndSorted}
-                keyExtractor={getRowId}
+                keyExtractor={(row) => `${row.product.id}-${row.variantIndex}`}
                 emptyMessage="No products match your filters. Add a product to get started."
                 loading={loading}
-                selectable
-                selectedIds={selectedRowIds}
-                onSelectionChange={setSelectedRowIds}
-                onRowDoubleClick={(row) => openEdit(row.product, row.variantIndex)}
               />
             </div>
           </>
         )}
       </div>
-
-      {bulkEditVisible && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => !bulkEditSaving && setBulkEditVisible(false)}
-        >
-          <form
-            onSubmit={handleBulkEdit}
-            onClick={(event) => event.stopPropagation()}
-            className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-900"
-          >
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Bulk edit products</h3>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Changes apply to {selectedProducts.length} selected product(s). Leave fields unchanged to keep their current values.
-            </p>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label>Category</Label>
-                <Input
-                  value={bulkEditForm.product_type}
-                  onChange={(event) => setBulkEditForm((form) => ({ ...form, product_type: event.target.value }))}
-                  placeholder="Leave unchanged"
-                  className="mt-1.5"
-                  disabled={bulkEditSaving}
-                />
-              </div>
-              <div>
-                <Label>Status</Label>
-                <select
-                  value={bulkEditForm.status}
-                  onChange={(event) => setBulkEditForm((form) => ({ ...form, status: event.target.value }))}
-                  disabled={bulkEditSaving}
-                  className="mt-1.5 h-11 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
-                >
-                  <option value="">Leave unchanged</option>
-                  <option value="active">Active</option>
-                  <option value="draft">Draft</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-              <div>
-                <Label>Vendor</Label>
-                <Input
-                  value={bulkEditForm.vendor}
-                  onChange={(event) => setBulkEditForm((form) => ({ ...form, vendor: event.target.value }))}
-                  placeholder="Leave unchanged"
-                  className="mt-1.5"
-                  disabled={bulkEditSaving}
-                />
-              </div>
-              <div>
-                <Label>Product price</Label>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={bulkEditForm.price}
-                  onChange={(event) => setBulkEditForm((form) => ({ ...form, price: event.target.value }))}
-                  placeholder="Leave unchanged"
-                  className="mt-1.5"
-                  disabled={bulkEditSaving}
-                />
-              </div>
-              <div>
-                <Label>Original price</Label>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={bulkEditForm.price_old}
-                  onChange={(event) => setBulkEditForm((form) => ({ ...form, price_old: event.target.value }))}
-                  placeholder="Leave unchanged"
-                  className="mt-1.5"
-                  disabled={bulkEditSaving}
-                />
-              </div>
-            </div>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={bulkEditSaving}
-                onClick={() => setBulkEditVisible(false)}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-60 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={bulkEditSaving}
-                className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60 dark:bg-sky-500"
-              >
-                {bulkEditSaving ? "Saving…" : "Apply changes"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       {listingChoiceOpen && (
         <div
@@ -1678,8 +1351,9 @@ export default function Products() {
           >
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">AI product listing</h3>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Describe your product in a few words. Gemini will fill title, description, SEO fields, SKU, price, and more.
-              If you see a quota error, switch to <strong className="font-medium">gemini-2.5-flash</strong> below.
+              Describe your product in a few words. AI fills title, SKU, category, description, and price for both Shopify and Daraz.
+              Pick the company that has those stores connected, then review and save (add an image URL for Daraz).
+              Use <strong className="font-medium">gemini-2.5-flash-lite</strong> for fastest results.
             </p>
             {aiConfigLoading ? (
               <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Loading Gemini models…</p>
@@ -1758,7 +1432,7 @@ export default function Products() {
                 onClick={() => void runAiListing()}
                 className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60 dark:bg-sky-500"
               >
-                {aiGenerating ? "Generating…" : "Generate listing"}
+                {aiGenerating ? "Generating (usually ~5–15s)…" : "Generate listing"}
               </button>
             </div>
           </div>
