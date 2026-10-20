@@ -80,7 +80,12 @@ export default function CompanyIntegrations() {
     setFormCredentials(ci.credentials || {});
     const isDaraz = ci.integration_slug === "daraz";
     setDarazOAuthConnected(
-      isDaraz && !!(ci.credentials?.oauth_connected || ci.credentials?.authorization_code)
+      isDaraz &&
+        !!(
+          ci.credentials?.oauth_connected ||
+          ci.credentials?.access_token ||
+          ci.credentials?.authorization_code
+        )
     );
     setDarazConnecting(false);
     setFormActive(ci.status === 1);
@@ -109,17 +114,32 @@ export default function CompanyIntegrations() {
     const listener = (event: MessageEvent) => {
       const data = event.data;
       if (data && typeof data === "object" && data.type === "DARAZ_CONNECTED") {
-        setDarazOAuthConnected(true);
         setDarazConnecting(false);
+        if (data.ok === false) {
+          setDarazOAuthConnected(false);
+          setError(String(data.error || "Daraz connect failed"));
+          return;
+        }
+        setDarazOAuthConnected(true);
+        const fromPopup =
+          data.credentials && typeof data.credentials === "object"
+            ? (data.credentials as Record<string, string>)
+            : null;
         setFormCredentials((prev) => ({
           ...prev,
           oauth_connected: "true",
-          // Drop expired tokens so Save exchanges the new authorization_code.
-          access_token: "",
-          refresh_token: "",
-          expires_in: "",
-          refresh_expires_in: "",
-          ...(data.code ? { authorization_code: String(data.code) } : {}),
+          authorization_code: "",
+          // Prefer tokens exchanged in callback (codes expire too fast to exchange on Save).
+          ...(fromPopup
+            ? {
+                access_token: String(fromPopup.access_token || ""),
+                refresh_token: String(fromPopup.refresh_token || ""),
+                expires_in: String(fromPopup.expires_in || ""),
+                refresh_expires_in: String(fromPopup.refresh_expires_in || ""),
+              }
+            : data.code
+              ? { authorization_code: String(data.code) }
+              : {}),
         }));
       }
     };
