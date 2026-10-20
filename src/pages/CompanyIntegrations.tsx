@@ -112,15 +112,15 @@ export default function CompanyIntegrations() {
         setDarazOAuthConnected(true);
         setDarazConnecting(false);
         setFormCredentials((prev) => ({
-  ...prev,
-  oauth_connected: "true",
-  // Drop expired tokens so Save exchanges the new authorization_code.
-  access_token: "",
-  refresh_token: "",
-  expires_in: "",
-  refresh_expires_in: "",
-  ...(data.code ? { authorization_code: String(data.code) } : {}),
-}));
+          ...prev,
+          oauth_connected: "true",
+          // Drop expired tokens so Save exchanges the new authorization_code.
+          access_token: "",
+          refresh_token: "",
+          expires_in: "",
+          refresh_expires_in: "",
+          ...(data.code ? { authorization_code: String(data.code) } : {}),
+        }));
       }
     };
     window.addEventListener("message", listener);
@@ -410,6 +410,9 @@ export default function CompanyIntegrations() {
                   {!formCompanyId && (
                     <p className="text-sm text-amber-600 dark:text-amber-400">Select a company first, then connect Daraz.</p>
                   )}
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    After Connect succeeds, click <strong>Save</strong> right away so the new token is stored.
+                  </p>
                 </SetupFormSection>
               )}
 
