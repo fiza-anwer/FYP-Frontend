@@ -16,6 +16,9 @@ import Consignments from "./pages/Consignments";
 import Products from "./pages/Products";
 import Inventory from "./pages/Inventory";
 import InventoryAdjust from "./pages/InventoryAdjust";
+import MyProfile from "./pages/MyProfile";
+import HelpSupport from "./pages/HelpSupport";
+import EmailChangeAction from "./pages/EmailChangeAction";
 import SuperadminTenants from "./pages/Superadmin/Tenants";
 import { setOnUnauthorized } from "./api/client";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -34,6 +37,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/signin" element={<SignIn />} />
       <Route path="/signup" element={<SignUp />} />
+      <Route path="/email-change" element={<EmailChangeAction />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
@@ -47,6 +51,8 @@ function AppRoutes() {
           <Route path="/products" element={<Products />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/inventory/:productId/adjust" element={<InventoryAdjust />} />
+          <Route path="/profile" element={<MyProfile />} />
+          <Route path="/help-support" element={<HelpSupport />} />
           <Route path="/superadmin/tenants" element={<SuperadminTenants />} />
         </Route>
       </Route>

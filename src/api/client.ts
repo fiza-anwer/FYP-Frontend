@@ -1,7 +1,6 @@
 export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const TOKEN_KEY = "token";
-const USER_KEY = "user";
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -346,8 +345,20 @@ export type StockAlertSummary = {
 };
 
 export type LoginResponse = {
-  token: string;
-  user: { email: string; role: string; tenant_name?: string; isSuperadmin: boolean };
+  token?: string;
+  challenge_token?: string;
+  requires_two_factor?: boolean;
+  user?: {
+    email: string;
+    role: string;
+    tenant_name?: string;
+    name?: string;
+    avatar?: string;
+    isSuperadmin: boolean;
+    member_since?: string | null;
+    last_login_at?: string | null;
+    email_verified?: boolean;
+  };
   stock_alerts?: StockAlertSummary;
 };
 export type TenantRow = { id: string; tenant_name: string; email: string; status: string; created_at?: string };
@@ -361,6 +372,16 @@ export const authApi = {
     }).then(async (res) => {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((data as { error?: string }).error || "Login failed");
+      return data as LoginResponse;
+    }),
+  verifyTwoFactor: (body: { challenge_token: string; code: string }) =>
+    fetch(`${API_BASE}/api/auth/two-factor/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error || "Verification failed");
       return data as LoginResponse;
     }),
   signup: (body: { email: string; password: string; tenant_name: string }) =>

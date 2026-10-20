@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { useAuth } from "../../context/AuthContext";
+import { api } from "../../api/client";
 
 function formatTenantName(name: string | undefined): string {
   if (!name) return "";
@@ -18,10 +19,19 @@ export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const { user, isSuperadmin, logout } = useAuth();
-  const displayName = user?.tenant_name ? formatTenantName(user.tenant_name) : isSuperadmin ? "UniSell" : "";
+  const displayName = user?.name || (user?.tenant_name
+    ? formatTenantName(user.tenant_name)
+    : isSuperadmin
+      ? "UniSell"
+      : "");
 
-  function handleSignOut() {
+  async function handleSignOut() {
     closeDropdown();
+    try {
+      await api<void>("/api/auth/sessions/current", { method: "DELETE" });
+    } catch (err) {
+      console.error("Could not revoke sign-out session:", err);
+    }
     logout();
     navigate("/signin", { replace: true });
   }
@@ -39,10 +49,14 @@ export default function UserDropdown() {
         onClick={toggleDropdown}
         className="flex items-center gap-2 rounded-xl px-3 py-2 text-violet-600 hover:bg-violet-50 hover:text-violet-700 dark:text-violet-400 dark:hover:bg-violet-500/15 dropdown-toggle"
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-400">
+        <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-400">
+          {user?.avatar ? (
+            <img className="h-full w-full object-cover" src={user.avatar} alt="" />
+          ) : (
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
+          )}
         </span>
         <span className="hidden font-medium text-theme-sm sm:block">{displayName || "User"}</span>
         <svg
@@ -81,8 +95,36 @@ export default function UserDropdown() {
 
         <button
           type="button"
+          onClick={() => {
+            closeDropdown();
+            navigate("/profile");
+          }}
+          className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-theme-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
+        >
+          <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          My profile
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            closeDropdown();
+            navigate("/help-support");
+          }}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-theme-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
+        >
+          <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3m.1 4h.01M12 22a10 10 0 110-20 10 10 0 010 20z" />
+          </svg>
+          Help &amp; support
+        </button>
+
+        <button
+          type="button"
           onClick={handleSignOut}
-          className="flex w-full items-center gap-3 px-3 py-2 mt-3 pt-3 border-t border-gray-200 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
+          className="mt-2 flex w-full items-center gap-3 border-t border-gray-200 px-3 pt-3 pb-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
         >
           <svg
             className="fill-gray-500 group-hover:fill-gray-700 dark:group-hover:fill-gray-300"

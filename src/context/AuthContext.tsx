@@ -6,9 +6,15 @@ const TOKEN_KEY = "token";
 
 export type AuthUser = {
   email?: string;
+  name?: string;
+  avatar?: string;
   username?: string;
   tenant_name?: string;
   role?: string;
+  member_since?: string | null;
+  last_login_at?: string | null;
+  email_verified?: boolean;
+  two_factor_enabled?: boolean;
   [key: string]: unknown;
 };
 

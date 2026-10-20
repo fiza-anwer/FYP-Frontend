@@ -27,8 +27,8 @@ export default function SignUpForm() {
       setError("Organization name, email and password are required.");
       return;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (password.length < 12) {
+      setError("Password must be at least 12 characters.");
       return;
     }
     setLoading(true);
@@ -123,7 +123,8 @@ export default function SignUpForm() {
                     <Input
                       id="signup-password"
                       name="password"
-                      placeholder="Enter your password (min 6 characters)"
+                      placeholder="At least 12 characters"
+                      minLength={12}
                       type={showPassword ? "text" : "password"}
                       autoComplete="new-password"
                       value={password}
@@ -141,6 +142,9 @@ export default function SignUpForm() {
                       )}
                     </span>
                   </div>
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    Use at least 12 characters with uppercase, lowercase, numbers, and symbols. Common passwords are rejected.
+                  </p>
                 </div>
                 <div className="flex items-center gap-3">
                   <Checkbox
