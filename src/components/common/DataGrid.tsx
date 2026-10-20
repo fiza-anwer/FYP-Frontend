@@ -19,6 +19,7 @@ type DataGridProps<T> = {
   selectable?: boolean;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
+  /** Double-click a data row (not the checkbox cell) */
   onRowDoubleClick?: (row: T) => void;
 };
 
@@ -51,17 +52,6 @@ function DataGrid<T>({
     if (set.has(id)) onSelectionChange(selectedIds.filter((x) => x !== id));
     else onSelectionChange([...selectedIds, id]);
   };
-  const handleRowDoubleClick = (event: React.MouseEvent<HTMLTableRowElement>, row: T) => {
-    if (!onRowDoubleClick) return;
-    const target = event.target;
-    if (
-      target instanceof Element &&
-      target.closest("button, a, input, textarea, select, label, [role='button']")
-    ) {
-      return;
-    }
-    onRowDoubleClick(row);
-  };
 
   return (
     <div
@@ -79,7 +69,6 @@ function DataGrid<T>({
                   <input
                     type="checkbox"
                     checked={allSelected}
-                    aria-label={allSelected ? "Deselect all rows" : "Select all rows"}
                     onChange={toggleAll}
                     className="rounded border-gray-300 dark:border-gray-600"
                   />
@@ -128,29 +117,20 @@ function DataGrid<T>({
                 return (
                   <tr
                     key={rowKey}
-                    onDoubleClick={(event) => handleRowDoubleClick(event, row)}
-                    onKeyDown={(event) => {
-                      if (!onRowDoubleClick || (event.key !== "Enter" && event.key !== " ")) return;
-                      if (event.target !== event.currentTarget) return;
-                      event.preventDefault();
-                      onRowDoubleClick(row);
-                    }}
-                    tabIndex={onRowDoubleClick ? 0 : undefined}
+                    onDoubleClick={() => onRowDoubleClick?.(row)}
                     className={
                       zebra +
                       " hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors " +
-                      (onRowDoubleClick ? "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 " : "") +
-                      trBorder
+                      trBorder +
+                      (onRowDoubleClick ? " cursor-pointer" : "")
                     }
                   >
                     {selectable && (
-                      <td className={tdClass}>
+                      <td className={tdClass} onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={set.has(id)}
-                          aria-label={`Select row ${index + 1}`}
                           onChange={() => toggleOne(id)}
-                          onClick={(event) => event.stopPropagation()}
                           className="rounded border-gray-300 dark:border-gray-600"
                         />
                       </td>
