@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router";
 import type { DashboardAnalytics } from "../../api/client";
 import DashboardOrdersLineChart from "../../components/dashboard/DashboardOrdersLineChart";
@@ -116,6 +117,7 @@ function FeaturedHero({
 }
 
 export default function TenantDashboard({ data }: { data: DashboardAnalytics }) {
+  const [showAllStaleProducts, setShowAllStaleProducts] = useState(false);
   const { user } = useAuth();
   const { summary } = data;
   const displayName = formatTenantName(user?.tenant_name);
@@ -363,7 +365,7 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
           </div>
         ) : (
           <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {data.stale_products.slice(0, 9).map((p) => {
+            {data.stale_products.slice(0, showAllStaleProducts ? undefined : 3).map((p) => {
               const style = STRATEGY_STYLES[p.strategy.id] ?? STRATEGY_STYLES.featured;
               return (
                 <li
@@ -391,10 +393,18 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
             })}
           </ul>
         )}
-        {data.stale_products.length > 9 && (
-          <p className="mt-4 text-center text-sm text-gray-500">
-            +{data.stale_products.length - 9} more products flagged
-          </p>
+        {data.stale_products.length > 3 && (
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => setShowAllStaleProducts((visible) => !visible)}
+              className="text-sm font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
+            >
+              {showAllStaleProducts
+                ? "Show less"
+                : `View all ${data.stale_products.length} alerts`}
+            </button>
+          </div>
         )}
       </DashboardPanel>
     </div>

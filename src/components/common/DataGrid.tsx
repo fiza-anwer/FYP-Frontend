@@ -19,6 +19,7 @@ type DataGridProps<T> = {
   selectable?: boolean;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
+  onRowClick?: (row: T) => void;
 };
 
 const thClass =
@@ -36,6 +37,7 @@ function DataGrid<T>({
   selectable = false,
   selectedIds = [],
   onSelectionChange,
+  onRowClick,
 }: DataGridProps<T>) {
   const set = new Set(selectedIds);
   const allSelected = data.length > 0 && data.every((row) => set.has(keyExtractor(row)));
@@ -48,6 +50,17 @@ function DataGrid<T>({
     if (!onSelectionChange) return;
     if (set.has(id)) onSelectionChange(selectedIds.filter((x) => x !== id));
     else onSelectionChange([...selectedIds, id]);
+  };
+  const handleRowClick = (event: React.MouseEvent<HTMLTableRowElement>, row: T) => {
+    if (!onRowClick) return;
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest("button, a, input, textarea, select, label, [role='button']")
+    ) {
+      return;
+    }
+    onRowClick(row);
   };
 
   return (
@@ -66,6 +79,7 @@ function DataGrid<T>({
                   <input
                     type="checkbox"
                     checked={allSelected}
+                    aria-label={allSelected ? "Deselect all rows" : "Select all rows"}
                     onChange={toggleAll}
                     className="rounded border-gray-300 dark:border-gray-600"
                   />
@@ -114,9 +128,18 @@ function DataGrid<T>({
                 return (
                   <tr
                     key={rowKey}
+                    onClick={(event) => handleRowClick(event, row)}
+                    onKeyDown={(event) => {
+                      if (!onRowClick || (event.key !== "Enter" && event.key !== " ")) return;
+                      if (event.target !== event.currentTarget) return;
+                      event.preventDefault();
+                      onRowClick(row);
+                    }}
+                    tabIndex={onRowClick ? 0 : undefined}
                     className={
                       zebra +
                       " hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors " +
+                      (onRowClick ? "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 " : "") +
                       trBorder
                     }
                   >
@@ -125,7 +148,9 @@ function DataGrid<T>({
                         <input
                           type="checkbox"
                           checked={set.has(id)}
+                          aria-label={`Select row ${index + 1}`}
                           onChange={() => toggleOne(id)}
+                          onClick={(event) => event.stopPropagation()}
                           className="rounded border-gray-300 dark:border-gray-600"
                         />
                       </td>

@@ -18,7 +18,7 @@ export default function InventoryAdjust() {
   const navigate = useNavigate();
   const state = (location.state as LocationState) || {};
 
-  const [title, setTitle] = useState(state.title ?? "");
+  const [title] = useState(state.title ?? "");
   const [sku] = useState(state.sku ?? "");
   const [quantity, setQuantity] = useState(
     state.quantity !== undefined ? String(state.quantity) : ""
@@ -54,6 +54,25 @@ export default function InventoryAdjust() {
     };
   }, [productId, state.quantity]);
 
+  useEffect(() => {
+    const handleBackspace = (event: KeyboardEvent) => {
+      if (event.key !== "Backspace") return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest("input, textarea, select, [contenteditable='true']"))
+      ) {
+        return;
+      }
+      event.preventDefault();
+      navigate("/inventory");
+    };
+
+    document.addEventListener("keydown", handleBackspace);
+    return () => document.removeEventListener("keydown", handleBackspace);
+  }, [navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!productId) return;
@@ -74,12 +93,12 @@ export default function InventoryAdjust() {
     }
   };
 
-  const pageTitle = title || "Adjust inventory";
+  const pageTitle = title || "Edit inventory";
 
   return (
     <div>
-      <PageMeta title="Adjust Inventory | UniSell" description="Adjust available stock for a product." />
-      <PageBreadcrumb pageTitle="Adjust inventory" />
+      <PageMeta title="Edit Inventory | UniSell" description="Edit available stock for a product." />
+      <PageBreadcrumb pageTitle="Edit inventory" />
       <div className="space-y-4">
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
@@ -89,7 +108,7 @@ export default function InventoryAdjust() {
         <div className="overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900/50">
           <div className="border-b border-gray-100 px-6 py-4 dark:border-gray-800">
             <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-              Adjust available stock
+              Edit available stock
             </h2>
             {pageTitle && (
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -137,4 +156,3 @@ export default function InventoryAdjust() {
     </div>
   );
 }
-

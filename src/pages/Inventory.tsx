@@ -23,6 +23,10 @@ export default function Inventory() {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+  const [bulkAdjustVisible, setBulkAdjustVisible] = useState(false);
+  const [bulkQuantity, setBulkQuantity] = useState("");
+  const [bulkSaving, setBulkSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
   const navigate = useNavigate();
@@ -147,6 +151,16 @@ export default function Inventory() {
     return Array.from(byLower.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   }, [products]);
 
+  const getRowId = (row: InventoryRow) => `${row.product.id}-${row.variantIndex}`;
+  const selectedRows = useMemo(
+    () => flattenedRows.filter((row) => selectedRowIds.includes(getRowId(row))),
+    [flattenedRows, selectedRowIds]
+  );
+  const selectedProducts = useMemo(
+    () => Array.from(new Map(selectedRows.map((row) => [row.product.id, row.product])).values()),
+    [selectedRows]
+  );
+
   const openAdjust = (row: InventoryRow) => {
     navigate(`/inventory/${row.product.id}/adjust`, {
       state: {
@@ -155,6 +169,58 @@ export default function Inventory() {
         quantity: typeof row.product.quantity === "number" ? row.product.quantity : 0,
       },
     });
+  };
+
+  const handleBulkAdjust = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (bulkSaving || selectedProducts.length === 0) return;
+    const quantity = Number(bulkQuantity);
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      setError("Enter a valid non-negative whole number for available stock.");
+      return;
+    }
+
+    setError("");
+    setBulkSaving(true);
+    try {
+      const results = await Promise.allSettled(
+        selectedProducts.map((product) => tenantApi.patchInventory(product.id, { quantity }))
+      );
+      const failed = results.filter((result) => result.status === "rejected");
+      setSelectedRowIds([]);
+      setBulkAdjustVisible(false);
+      setBulkQuantity("");
+      await load();
+      if (failed.length > 0) {
+        const firstFailure = failed[0];
+        setError(
+          `${failed.length} product(s) could not be adjusted.${firstFailure.status === "rejected" && firstFailure.reason instanceof Error ? ` ${firstFailure.reason.message}` : ""}`
+        );
+      }
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedProducts.length === 0) return;
+    const names = selectedProducts.slice(0, 3).map((product) => `"${product.title}"`).join(", ");
+    const remaining = selectedProducts.length > 3 ? ` and ${selectedProducts.length - 3} more` : "";
+    if (!window.confirm(`Delete ${selectedProducts.length} selected product(s) and their inventory: ${names}${remaining}?`)) return;
+
+    setError("");
+    const results = await Promise.allSettled(
+      selectedProducts.map((product) => tenantApi.deleteProduct(product.id))
+    );
+    const failed = results.filter((result) => result.status === "rejected");
+    setSelectedRowIds([]);
+    await load();
+    if (failed.length > 0) {
+      const firstFailure = failed[0];
+      setError(
+        `${failed.length} product(s) could not be deleted.${firstFailure.status === "rejected" && firstFailure.reason instanceof Error ? ` ${firstFailure.reason.message}` : ""}`
+      );
+    }
   };
 
   const columns: DataGridColumn<InventoryRow>[] = [
@@ -209,20 +275,6 @@ export default function Inventory() {
       key: "sync_status",
       label: "Status",
       render: (_, row) => <ProductSyncStatus product={row.product} />,
-    },
-    {
-      key: "product_id",
-      label: "Actions",
-      align: "right",
-      render: (_, row) => (
-        <button
-          type="button"
-          onClick={() => openAdjust(row)}
-          className="text-sm font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
-        >
-          Adjust
-        </button>
-      ),
     },
   ];
 
@@ -359,16 +411,99 @@ export default function Inventory() {
           </button>
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Available = on-hand stock. Allocated = reserved by orders. Adjust available stock below; changes sync to the linked channel (Shopify or Daraz).
+          Available = on-hand stock. Allocated = reserved by orders. Select products to adjust available stock; changes sync to the linked channel (Shopify or Daraz).
         </p>
+        {selectedRowIds.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 dark:border-sky-900/60 dark:bg-sky-950/30">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+              {selectedRowIds.length} row(s) selected
+              {selectedProducts.length !== selectedRowIds.length &&
+                ` · ${selectedProducts.length} product(s)`}
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedProducts.length === 1) openAdjust(selectedRows[0]);
+                  else {
+                    setBulkQuantity("");
+                    setBulkAdjustVisible(true);
+                  }
+                }}
+                className="rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600"
+              >
+                {selectedProducts.length === 1 ? "Edit" : "Bulk edit"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleBulkDelete()}
+                className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:bg-gray-900 dark:text-rose-300 dark:hover:bg-rose-900/20"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        )}
         <DataGrid
           columns={columns}
           data={filteredRows}
-          keyExtractor={(row) => `${row.product.id}-${row.variantIndex}`}
+          keyExtractor={getRowId}
           emptyMessage="No inventory. Add products or import from a connected store."
           loading={loading}
+          selectable
+          selectedIds={selectedRowIds}
+          onSelectionChange={setSelectedRowIds}
+          onRowClick={openAdjust}
         />
       </div>
+      {bulkAdjustVisible && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !bulkSaving && setBulkAdjustVisible(false)}
+        >
+          <form
+            onSubmit={handleBulkAdjust}
+            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-900"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Bulk edit inventory</h3>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              Set available stock to this quantity for {selectedProducts.length} selected product(s). Allocated stock is unchanged.
+            </p>
+            <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="bulk-inventory-quantity">
+              Available stock
+            </label>
+            <input
+              id="bulk-inventory-quantity"
+              type="number"
+              min="0"
+              step="1"
+              required
+              value={bulkQuantity}
+              onChange={(event) => setBulkQuantity(event.target.value)}
+              disabled={bulkSaving}
+              className="mt-1.5 h-11 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+            />
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={bulkSaving}
+                onClick={() => setBulkAdjustVisible(false)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-60 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={bulkSaving}
+                className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60 dark:bg-sky-500"
+              >
+                {bulkSaving ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

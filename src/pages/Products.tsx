@@ -15,9 +15,7 @@ import Label from "../components/form/Label";
 import TextArea from "../components/form/input/TextArea";
 import Radio from "../components/form/input/Radio";
 import Checkbox from "../components/form/input/Checkbox";
-import { Dropdown } from "../components/ui/dropdown/Dropdown";
-import { DropdownItem } from "../components/ui/dropdown/DropdownItem";
-import { HorizontaLDots, PlusIcon, TrashBinIcon } from "../icons";
+import { PlusIcon, TrashBinIcon } from "../icons";
 
 type SortKey = "name_asc" | "name_desc" | "price_asc" | "price_desc" | "newest" | "oldest";
 
@@ -30,6 +28,19 @@ type ProductListRow = {
 
 function getRowId(row: ProductListRow): string {
   return `${row.product.id}-${row.variantIndex}-${row.variant?.id ?? "0"}`;
+}
+
+function normalizeImageUrls(images: unknown): string[] {
+  const values = Array.isArray(images) ? images : typeof images === "string" ? images.split(/\r?\n/) : [];
+  return values
+    .map((image) => {
+      if (typeof image === "string") return image.trim();
+      if (!image || typeof image !== "object") return "";
+      const candidate = image as Record<string, unknown>;
+      const url = candidate.src ?? candidate.url ?? candidate.originalSrc;
+      return typeof url === "string" ? url.trim() : "";
+    })
+    .filter(Boolean);
 }
 
 const SIZE_OPTIONS = ["XS", "S", "M", "L", "XL"];
@@ -143,7 +154,16 @@ export default function Products() {
   const [editingVariantIndex, setEditingVariantIndex] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+  const [bulkEditVisible, setBulkEditVisible] = useState(false);
+  const [bulkEditSaving, setBulkEditSaving] = useState(false);
+  const [bulkEditForm, setBulkEditForm] = useState({
+    product_type: "",
+    status: "",
+    vendor: "",
+    price: "",
+    price_old: "",
+  });
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyIntegrations, setCompanyIntegrations] = useState<CompanyIntegration[]>([]);
   const [companyFilter, setCompanyFilter] = useState("");
@@ -305,7 +325,7 @@ export default function Products() {
       status: (["active", "draft", "archived"].includes(String(p.status || "")) ? (p.status as "active" | "draft" | "archived") : (p.status === "published" ? "active" : p.status === "scheduled" ? "draft" : p.status === "hidden" ? "archived" : "active")) as "active" | "draft" | "archived",
       sizes: Array.isArray(p.sizes) ? p.sizes : [],
       shipping_country: p.shipping_country ?? "",
-      images: Array.isArray(p.images) ? p.images : [],
+      images: normalizeImageUrls(p.images),
       tags: Array.isArray(p.tags) ? p.tags : [],
       vendor: p.vendor ?? "",
       company_id: p.company_id ?? "",
@@ -313,7 +333,7 @@ export default function Products() {
       variants: singleVariant,
     });
     setFormVisible(true);
-    setActionsOpenId(null);
+    setSelectedRowIds([]);
   };
 
   const closeForm = () => {
@@ -321,6 +341,26 @@ export default function Products() {
     setEditing(null);
     setEditingVariantIndex(null);
   };
+
+  useEffect(() => {
+    if (!formVisible) return;
+    const handleBackspace = (event: KeyboardEvent) => {
+      if (event.key !== "Backspace") return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest("input, textarea, select, [contenteditable='true']"))
+      ) {
+        return;
+      }
+      event.preventDefault();
+      closeForm();
+    };
+
+    document.addEventListener("keydown", handleBackspace);
+    return () => document.removeEventListener("keydown", handleBackspace);
+  }, [formVisible]);
 
   const toggleSize = (size: string) => {
     setForm((prev) => ({
@@ -508,51 +548,6 @@ export default function Products() {
     }
   };
 
-  const handlePushToShopify = async (p: Product) => {
-    setActionsOpenId(null);
-    setError("");
-    try {
-      const data = await tenantApi.pushProductToShopify(p.id) as Product & { category_warning?: string };
-      if (data?.category_warning) setSyncWarning(data.category_warning);
-      else setSyncWarning(null);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Push to Shopify failed.");
-      setSyncWarning(null);
-    }
-  };
-
-  const handlePushToDaraz = async (p: Product) => {
-    setActionsOpenId(null);
-    setError("");
-    setSyncWarning(null);
-    const imgs = Array.isArray(p.images) ? p.images : [];
-    const imgErr = validateDarazImageUrls(imgs);
-    if (imgErr) {
-      setError(imgErr);
-      return;
-    }
-    try {
-      const data = await tenantApi.pushProductToDaraz(p.id);
-      setSyncWarning(data?.message || "Product synced to Daraz.");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Push to Daraz failed.");
-    }
-  };
-
-  const handleDelete = async (p: Product) => {
-    setActionsOpenId(null);
-    if (!window.confirm(`Delete product "${p.title}"?`)) return;
-    setError("");
-    try {
-      await tenantApi.deleteProduct(p.id);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed.");
-    }
-  };
-
   /** One row per variant (or one row per product when no variants). */
   const flattenedRows = useMemo(() => {
     const rows: ProductListRow[] = [];
@@ -643,51 +638,130 @@ export default function Products() {
     return Array.from(byLower.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   }, [products]);
 
-  const columns: DataGridColumn<ProductListRow>[] = [
-    {
-      key: "actions",
-      label: "",
-      render: (_, row) => {
-        const rowId = getRowId(row);
-        return (
-          <div className="relative inline-block">
-            <button
-              type="button"
-              onClick={() => setActionsOpenId(actionsOpenId === rowId ? null : rowId)}
-              className="dropdown-toggle rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-              aria-label="Actions"
-            >
-              <HorizontaLDots className="h-5 w-5" />
-            </button>
-            <Dropdown
-              isOpen={actionsOpenId === rowId}
-              onClose={() => setActionsOpenId(null)}
-              className="left-0 right-auto min-w-[120px]"
-            >
-              <DropdownItem onClick={() => openEdit(row.product, row.variantIndex)}>Edit</DropdownItem>
-              {getProductPushTargets(row.product, companyIntegrations).includes("shopify") &&
-                !row.product.shopify_synced && (
-                  <DropdownItem onClick={() => handlePushToShopify(row.product)}>
-                    Push to Shopify
-                  </DropdownItem>
-                )}
-              {getProductPushTargets(row.product, companyIntegrations).includes("daraz") &&
-                !row.product.daraz_synced && (
-                  <DropdownItem onClick={() => handlePushToDaraz(row.product)}>
-                    Push to Daraz
-                  </DropdownItem>
-                )}
-              <DropdownItem
-                onClick={() => handleDelete(row.product)}
-                className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20"
-              >
-                Delete
-              </DropdownItem>
-            </Dropdown>
-          </div>
+  const selectedRows = useMemo(
+    () => flattenedRows.filter((row) => selectedRowIds.includes(getRowId(row))),
+    [flattenedRows, selectedRowIds]
+  );
+  const selectedProducts = useMemo(
+    () => Array.from(new Map(selectedRows.map((row) => [row.product.id, row.product])).values()),
+    [selectedRows]
+  );
+
+  const handlePushToShopify = async (product: Product) => {
+    setError("");
+    try {
+      const data = await tenantApi.pushProductToShopify(product.id) as Product & { category_warning?: string };
+      setSyncWarning(data?.category_warning ?? null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Push to Shopify failed.");
+      setSyncWarning(null);
+    }
+  };
+
+  const handlePushToDaraz = async (product: Product) => {
+    setError("");
+    setSyncWarning(null);
+    const imageError = validateDarazImageUrls(Array.isArray(product.images) ? product.images : []);
+    if (imageError) {
+      setError(imageError);
+      return;
+    }
+    try {
+      const result = await tenantApi.pushProductToDaraz(product.id);
+      setSyncWarning(result?.message || "Product synced to Daraz.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Push to Daraz failed.");
+    }
+  };
+
+  const handleSelectionEdit = () => {
+    if (selectedProducts.length !== 1) {
+      setBulkEditForm({ product_type: "", status: "", vendor: "", price: "", price_old: "" });
+      setBulkEditVisible(true);
+      return;
+    }
+    const row = selectedRows[0];
+    openEdit(selectedProducts[0], selectedRows.length === 1 ? row.variantIndex : undefined);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedProducts.length === 0) return;
+    const names = selectedProducts.slice(0, 3).map((product) => `"${product.title}"`).join(", ");
+    const remaining = selectedProducts.length > 3 ? ` and ${selectedProducts.length - 3} more` : "";
+    if (!window.confirm(`Delete ${selectedProducts.length} selected product(s): ${names}${remaining}?`)) return;
+
+    setError("");
+    const results = await Promise.allSettled(
+      selectedProducts.map((product) => tenantApi.deleteProduct(product.id))
+    );
+    const failed = results.filter((result) => result.status === "rejected");
+    setSelectedRowIds([]);
+    await load();
+    if (failed.length > 0) {
+      const firstFailure = failed[0];
+      setError(
+        `${failed.length} product(s) could not be deleted.${firstFailure.status === "rejected" && firstFailure.reason instanceof Error ? ` ${firstFailure.reason.message}` : ""}`
+      );
+    }
+  };
+
+  const handleBulkEdit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (bulkEditSaving || selectedProducts.length === 0) return;
+
+    const fields = bulkEditForm;
+    const price = fields.price.trim() ? Number(fields.price) : undefined;
+    const priceOld = fields.price_old.trim() ? Number(fields.price_old) : undefined;
+    if (price !== undefined && (!Number.isFinite(price) || price < 0)) {
+      setError("Enter a valid non-negative price.");
+      return;
+    }
+    if (priceOld !== undefined && (!Number.isFinite(priceOld) || priceOld < 0)) {
+      setError("Enter a valid non-negative original price.");
+      return;
+    }
+
+    const update: {
+      product_type?: string;
+      status?: string;
+      vendor?: string;
+      price?: number;
+      price_old?: number;
+    } = {};
+    if (fields.product_type.trim()) update.product_type = fields.product_type.trim();
+    if (fields.status) update.status = fields.status;
+    if (fields.vendor.trim()) update.vendor = fields.vendor.trim();
+    if (price !== undefined) update.price = price;
+    if (priceOld !== undefined) update.price_old = priceOld;
+    if (Object.keys(update).length === 0) {
+      setError("Choose at least one field to update.");
+      return;
+    }
+
+    setError("");
+    setBulkEditSaving(true);
+    try {
+      const results = await Promise.allSettled(
+        selectedProducts.map((product) => tenantApi.updateProduct(product.id, update))
+      );
+      const failed = results.filter((result) => result.status === "rejected");
+      setSelectedRowIds([]);
+      setBulkEditVisible(false);
+      await load();
+      if (failed.length > 0) {
+        const firstFailure = failed[0];
+        setError(
+          `${failed.length} product(s) could not be updated.${firstFailure.status === "rejected" && firstFailure.reason instanceof Error ? ` ${firstFailure.reason.message}` : ""}`
         );
-      },
-    },
+      }
+    } finally {
+      setBulkEditSaving(false);
+    }
+  };
+
+  const columns: DataGridColumn<ProductListRow>[] = [
     { key: "title", label: "Product", render: (_, row) => String(row.product.title || "—") },
     {
       key: "sku",
@@ -1273,6 +1347,27 @@ export default function Products() {
                       One URL per line. Must be a direct photo link (ends with .jpg or .png), not a
                       shop page. Tip: right‑click the photo → Copy image address.
                     </p>
+                    {form.images.length > 0 && (
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        {form.images.map((imageUrl, index) => (
+                          <a
+                            key={`${imageUrl}-${index}`}
+                            href={imageUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block size-20 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+                            aria-label={`Open product image ${index + 1}`}
+                          >
+                            <img
+                              src={imageUrl}
+                              alt={`${form.title || "Product"} image ${index + 1}`}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    )}
                     <TextArea
                       value={form.images.join("\n")}
                       onChange={(v) =>
@@ -1381,17 +1476,163 @@ export default function Products() {
             </div>
 
             <div className="rounded-2xl border border-gray-200/90 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900/50">
+              {selectedRowIds.length > 0 && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 dark:border-sky-900/60 dark:bg-sky-950/30">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    {selectedRowIds.length} row(s) selected
+                    {selectedProducts.length !== selectedRowIds.length &&
+                      ` · ${selectedProducts.length} product(s)`}
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSelectionEdit}
+                      className="rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600"
+                    >
+                      {selectedProducts.length === 1 ? "Edit" : "Bulk edit"}
+                    </button>
+                    {selectedProducts.length === 1 &&
+                      getProductPushTargets(selectedProducts[0], companyIntegrations).includes("shopify") &&
+                      !selectedProducts[0].shopify_synced && (
+                        <button
+                          type="button"
+                          onClick={() => void handlePushToShopify(selectedProducts[0])}
+                          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                        >
+                          Push to Shopify
+                        </button>
+                      )}
+                    {selectedProducts.length === 1 &&
+                      getProductPushTargets(selectedProducts[0], companyIntegrations).includes("daraz") &&
+                      !selectedProducts[0].daraz_synced && (
+                        <button
+                          type="button"
+                          onClick={() => void handlePushToDaraz(selectedProducts[0])}
+                          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                        >
+                          Push to Daraz
+                        </button>
+                      )}
+                    <button
+                      type="button"
+                      onClick={() => void handleBulkDelete()}
+                      className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:bg-gray-900 dark:text-rose-300 dark:hover:bg-rose-900/20"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )}
               <DataGrid
                 columns={columns}
                 data={filteredAndSorted}
-                keyExtractor={(row) => `${row.product.id}-${row.variantIndex}`}
+                keyExtractor={getRowId}
                 emptyMessage="No products match your filters. Add a product to get started."
                 loading={loading}
+                selectable
+                selectedIds={selectedRowIds}
+                onSelectionChange={setSelectedRowIds}
+                onRowClick={(row) => openEdit(row.product, row.variantIndex)}
               />
             </div>
           </>
         )}
       </div>
+
+      {bulkEditVisible && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !bulkEditSaving && setBulkEditVisible(false)}
+        >
+          <form
+            onSubmit={handleBulkEdit}
+            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-900"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Bulk edit products</h3>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              Changes apply to {selectedProducts.length} selected product(s). Leave fields unchanged to keep their current values.
+            </p>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label>Category</Label>
+                <Input
+                  value={bulkEditForm.product_type}
+                  onChange={(event) => setBulkEditForm((form) => ({ ...form, product_type: event.target.value }))}
+                  placeholder="Leave unchanged"
+                  className="mt-1.5"
+                  disabled={bulkEditSaving}
+                />
+              </div>
+              <div>
+                <Label>Status</Label>
+                <select
+                  value={bulkEditForm.status}
+                  onChange={(event) => setBulkEditForm((form) => ({ ...form, status: event.target.value }))}
+                  disabled={bulkEditSaving}
+                  className="mt-1.5 h-11 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                >
+                  <option value="">Leave unchanged</option>
+                  <option value="active">Active</option>
+                  <option value="draft">Draft</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+              <div>
+                <Label>Vendor</Label>
+                <Input
+                  value={bulkEditForm.vendor}
+                  onChange={(event) => setBulkEditForm((form) => ({ ...form, vendor: event.target.value }))}
+                  placeholder="Leave unchanged"
+                  className="mt-1.5"
+                  disabled={bulkEditSaving}
+                />
+              </div>
+              <div>
+                <Label>Product price</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={bulkEditForm.price}
+                  onChange={(event) => setBulkEditForm((form) => ({ ...form, price: event.target.value }))}
+                  placeholder="Leave unchanged"
+                  className="mt-1.5"
+                  disabled={bulkEditSaving}
+                />
+              </div>
+              <div>
+                <Label>Original price</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={bulkEditForm.price_old}
+                  onChange={(event) => setBulkEditForm((form) => ({ ...form, price_old: event.target.value }))}
+                  placeholder="Leave unchanged"
+                  className="mt-1.5"
+                  disabled={bulkEditSaving}
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={bulkEditSaving}
+                onClick={() => setBulkEditVisible(false)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-60 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={bulkEditSaving}
+                className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60 dark:bg-sky-500"
+              >
+                {bulkEditSaving ? "Saving…" : "Apply changes"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {listingChoiceOpen && (
         <div
