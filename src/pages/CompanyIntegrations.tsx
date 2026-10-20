@@ -112,10 +112,15 @@ export default function CompanyIntegrations() {
         setDarazOAuthConnected(true);
         setDarazConnecting(false);
         setFormCredentials((prev) => ({
-          ...prev,
-          oauth_connected: "true",
-          ...(data.code ? { authorization_code: String(data.code) } : {}),
-        }));
+  ...prev,
+  oauth_connected: "true",
+  // Drop expired tokens so Save exchanges the new authorization_code.
+  access_token: "",
+  refresh_token: "",
+  expires_in: "",
+  refresh_expires_in: "",
+  ...(data.code ? { authorization_code: String(data.code) } : {}),
+}));
       }
     };
     window.addEventListener("message", listener);
