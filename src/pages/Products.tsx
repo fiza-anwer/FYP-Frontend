@@ -6,7 +6,6 @@ import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
 import {
   ProductChannelCell,
   ProductSyncStatus,
-  getProductPushTargets,
   productStatusLabel,
 } from "../components/common/ChannelSyncStatus";
 import { tenantApi, type Product, type ProductVariant, type Company, type CompanyIntegration } from "../api/client";
@@ -15,9 +14,7 @@ import Label from "../components/form/Label";
 import TextArea from "../components/form/input/TextArea";
 import Radio from "../components/form/input/Radio";
 import Checkbox from "../components/form/input/Checkbox";
-import { Dropdown } from "../components/ui/dropdown/Dropdown";
-import { DropdownItem } from "../components/ui/dropdown/DropdownItem";
-import { HorizontaLDots, PlusIcon, TrashBinIcon } from "../icons";
+import { PlusIcon, TrashBinIcon } from "../icons";
 
 type SortKey = "name_asc" | "name_desc" | "price_asc" | "price_desc" | "newest" | "oldest";
 
@@ -121,7 +118,7 @@ export default function Products() {
   const [editingVariantIndex, setEditingVariantIndex] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyIntegrations, setCompanyIntegrations] = useState<CompanyIntegration[]>([]);
   const [companyFilter, setCompanyFilter] = useState("");
@@ -286,7 +283,6 @@ export default function Products() {
       variants: singleVariant,
     });
     setFormVisible(true);
-    setActionsOpenId(null);
   };
 
   const closeForm = () => {
@@ -475,51 +471,6 @@ export default function Products() {
     }
   };
 
-  const handlePushToShopify = async (p: Product) => {
-    setActionsOpenId(null);
-    setError("");
-    try {
-      const data = await tenantApi.pushProductToShopify(p.id) as Product & { category_warning?: string };
-      if (data?.category_warning) setSyncWarning(data.category_warning);
-      else setSyncWarning(null);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Push to Shopify failed.");
-      setSyncWarning(null);
-    }
-  };
-
-  const handlePushToDaraz = async (p: Product) => {
-    setActionsOpenId(null);
-    setError("");
-    setSyncWarning(null);
-    const imgs = Array.isArray(p.images) ? p.images : [];
-    const imgErr = validateDarazImageUrls(imgs);
-    if (imgErr) {
-      setError(imgErr);
-      return;
-    }
-    try {
-      const data = await tenantApi.pushProductToDaraz(p.id);
-      setSyncWarning(data?.message || "Product synced to Daraz.");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Push to Daraz failed.");
-    }
-  };
-
-  const handleDelete = async (p: Product) => {
-    setActionsOpenId(null);
-    if (!window.confirm(`Delete product "${p.title}"?`)) return;
-    setError("");
-    try {
-      await tenantApi.deleteProduct(p.id);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed.");
-    }
-  };
-
   /** One row per variant (or one row per product when no variants). */
   const flattenedRows = useMemo(() => {
     const rows: ProductListRow[] = [];
@@ -597,6 +548,42 @@ export default function Products() {
     return list;
   }, [flattenedRows, search, statusFilter, typeFilter, sort]);
 
+  const selectedRows = useMemo(
+    () => filteredAndSorted.filter((row) => selectedRowIds.includes(getRowId(row))),
+    [filteredAndSorted, selectedRowIds]
+  );
+  const hasSelection = selectedRows.length > 0;
+
+  const handleToolbarEdit = () => {
+    if (!hasSelection) return;
+    const row = selectedRows[0];
+    openEdit(row.product, row.variantIndex);
+  };
+
+  const handleToolbarDelete = async () => {
+    if (!hasSelection) return;
+    const uniqueProducts = new Map<string, Product>();
+    for (const row of selectedRows) {
+      uniqueProducts.set(row.product.id, row.product);
+    }
+    const list = Array.from(uniqueProducts.values());
+    const label =
+      list.length === 1
+        ? `Delete product "${list[0].title}"?`
+        : `Delete ${list.length} selected products?`;
+    if (!window.confirm(label)) return;
+    setError("");
+    try {
+      for (const p of list) {
+        await tenantApi.deleteProduct(p.id);
+      }
+      setSelectedRowIds([]);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed.");
+    }
+  };
+
   const uniqueTypes = useMemo(() => {
     const byLower = new Map<string, string>();
     const capitalize = (s: string) => (s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1).toLowerCase());
@@ -611,50 +598,6 @@ export default function Products() {
   }, [products]);
 
   const columns: DataGridColumn<ProductListRow>[] = [
-    {
-      key: "actions",
-      label: "",
-      render: (_, row) => {
-        const rowId = getRowId(row);
-        return (
-          <div className="relative inline-block">
-            <button
-              type="button"
-              onClick={() => setActionsOpenId(actionsOpenId === rowId ? null : rowId)}
-              className="dropdown-toggle rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-              aria-label="Actions"
-            >
-              <HorizontaLDots className="h-5 w-5" />
-            </button>
-            <Dropdown
-              isOpen={actionsOpenId === rowId}
-              onClose={() => setActionsOpenId(null)}
-              className="left-0 right-auto min-w-[120px]"
-            >
-              <DropdownItem onClick={() => openEdit(row.product, row.variantIndex)}>Edit</DropdownItem>
-              {getProductPushTargets(row.product, companyIntegrations).includes("shopify") &&
-                !row.product.shopify_synced && (
-                  <DropdownItem onClick={() => handlePushToShopify(row.product)}>
-                    Push to Shopify
-                  </DropdownItem>
-                )}
-              {getProductPushTargets(row.product, companyIntegrations).includes("daraz") &&
-                !row.product.daraz_synced && (
-                  <DropdownItem onClick={() => handlePushToDaraz(row.product)}>
-                    Push to Daraz
-                  </DropdownItem>
-                )}
-              <DropdownItem
-                onClick={() => handleDelete(row.product)}
-                className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20"
-              >
-                Delete
-              </DropdownItem>
-            </Dropdown>
-          </div>
-        );
-      },
-    },
     { key: "title", label: "Product", render: (_, row) => String(row.product.title || "—") },
     {
       key: "sku",
@@ -1237,6 +1180,22 @@ export default function Products() {
                 />
               </div>
               <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleToolbarEdit}
+                  disabled={!hasSelection}
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleToolbarDelete()}
+                  disabled={!hasSelection}
+                  className="rounded-lg border border-rose-200 bg-white px-4 py-2.5 text-sm font-medium text-rose-600 shadow-sm hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-rose-800 dark:bg-gray-800 dark:text-rose-400 dark:hover:bg-rose-900/20"
+                >
+                  Delete
+                </button>
                 <select
                   value={companyFilter}
                   onChange={(e) => setCompanyFilter(e.target.value)}
@@ -1298,9 +1257,13 @@ export default function Products() {
               <DataGrid
                 columns={columns}
                 data={filteredAndSorted}
-                keyExtractor={(row) => `${row.product.id}-${row.variantIndex}`}
+                keyExtractor={(row) => getRowId(row)}
                 emptyMessage="No products match your filters. Add a product to get started."
                 loading={loading}
+                selectable
+                selectedIds={selectedRowIds}
+                onSelectionChange={setSelectedRowIds}
+                onRowDoubleClick={(row) => openEdit(row.product, row.variantIndex)}
               />
             </div>
           </>
