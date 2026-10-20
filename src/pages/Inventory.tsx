@@ -453,7 +453,7 @@ export default function Inventory() {
           selectable
           selectedIds={selectedRowIds}
           onSelectionChange={setSelectedRowIds}
-          onRowClick={openAdjust}
+          onRowDoubleClick={openAdjust}
         />
       </div>
       {bulkAdjustVisible && (

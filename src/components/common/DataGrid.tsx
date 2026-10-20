@@ -19,7 +19,7 @@ type DataGridProps<T> = {
   selectable?: boolean;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
-  onRowClick?: (row: T) => void;
+  onRowDoubleClick?: (row: T) => void;
 };
 
 const thClass =
@@ -37,7 +37,7 @@ function DataGrid<T>({
   selectable = false,
   selectedIds = [],
   onSelectionChange,
-  onRowClick,
+  onRowDoubleClick,
 }: DataGridProps<T>) {
   const set = new Set(selectedIds);
   const allSelected = data.length > 0 && data.every((row) => set.has(keyExtractor(row)));
@@ -51,8 +51,8 @@ function DataGrid<T>({
     if (set.has(id)) onSelectionChange(selectedIds.filter((x) => x !== id));
     else onSelectionChange([...selectedIds, id]);
   };
-  const handleRowClick = (event: React.MouseEvent<HTMLTableRowElement>, row: T) => {
-    if (!onRowClick) return;
+  const handleRowDoubleClick = (event: React.MouseEvent<HTMLTableRowElement>, row: T) => {
+    if (!onRowDoubleClick) return;
     const target = event.target;
     if (
       target instanceof Element &&
@@ -60,7 +60,7 @@ function DataGrid<T>({
     ) {
       return;
     }
-    onRowClick(row);
+    onRowDoubleClick(row);
   };
 
   return (
@@ -128,18 +128,18 @@ function DataGrid<T>({
                 return (
                   <tr
                     key={rowKey}
-                    onClick={(event) => handleRowClick(event, row)}
+                    onDoubleClick={(event) => handleRowDoubleClick(event, row)}
                     onKeyDown={(event) => {
-                      if (!onRowClick || (event.key !== "Enter" && event.key !== " ")) return;
+                      if (!onRowDoubleClick || (event.key !== "Enter" && event.key !== " ")) return;
                       if (event.target !== event.currentTarget) return;
                       event.preventDefault();
-                      onRowClick(row);
+                      onRowDoubleClick(row);
                     }}
-                    tabIndex={onRowClick ? 0 : undefined}
+                    tabIndex={onRowDoubleClick ? 0 : undefined}
                     className={
                       zebra +
                       " hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors " +
-                      (onRowClick ? "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 " : "") +
+                      (onRowDoubleClick ? "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 " : "") +
                       trBorder
                     }
                   >

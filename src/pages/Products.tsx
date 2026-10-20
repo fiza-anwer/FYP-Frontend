@@ -1532,7 +1532,7 @@ export default function Products() {
                 selectable
                 selectedIds={selectedRowIds}
                 onSelectionChange={setSelectedRowIds}
-                onRowClick={(row) => openEdit(row.product, row.variantIndex)}
+                onRowDoubleClick={(row) => openEdit(row.product, row.variantIndex)}
               />
             </div>
           </>
