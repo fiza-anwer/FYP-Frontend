@@ -12,6 +12,7 @@ const NotFound = lazy(() => import("./pages/OtherPage/NotFound"));
 const AppLayout = lazy(() => import("./layout/AppLayout"));
 const Home = lazy(() => import("./pages/Dashboard/Home"));
 const Orders = lazy(() => import("./pages/Orders"));
+const Reports = lazy(() => import("./pages/Reports"));
 const Companies = lazy(() => import("./pages/Companies"));
 const CompanyIntegrations = lazy(() => import("./pages/CompanyIntegrations"));
 const CarrierIntegrations = lazy(() => import("./pages/CarrierIntegrations"));
@@ -48,9 +49,11 @@ function AppRoutes() {
           <Route element={<AppLayout />}>
             <Route index path="/" element={<Home />} />
             <Route path="/orders" element={<Orders />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/consignments" element={<Consignments />} />
             <Route path="/companies" element={<Companies />} />
             <Route path="/company-integrations" element={<CompanyIntegrations />} />
+            <Route path="/company-integrations/setup" element={<CompanyIntegrations />} />
             <Route path="/carrier-integrations" element={<CarrierIntegrations />} />
             <Route path="/carrier-integration-services" element={<CarrierIntegrationServices />} />
             <Route path="/products" element={<Products />} />

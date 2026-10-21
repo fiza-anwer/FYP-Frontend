@@ -66,6 +66,13 @@ const tenantNavItems: NavItem[] = [
       { name: "Carrier Services", path: "/carrier-integration-services", pro: false },
     ],
   },
+  {
+    icon: <TableIcon />,
+    name: "Business Reports",
+    path: "/reports",
+    iconColor: "text-emerald-500 group-hover:text-emerald-600 dark:text-emerald-400",
+    iconColorActive: "text-emerald-600 dark:text-emerald-400",
+  },
 ];
 
 const superadminNavItems: NavItem[] = [
