@@ -6,9 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   </head>
   <body class="dark:bg-gray-900" style="margin: 0; min-height: 100vh;">
-    <div id="root" style="min-height: 100vh; width: 100%; background: #f3f4f6;">
-      <p>Loading…</p>
+    <div id="root" style="min-height: 100vh; width: 100%; background: #f9fafb;">
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:20px">
+          <img src="/images/logo/logo-admin.svg" alt="UniSell" width="140" height="32" />
+          <div style="display:flex;align-items:center;gap:10px;color:#667085;font-size:14px;font-weight:500">
+            <span aria-hidden="true" style="width:16px;height:16px;border:2px solid #e5e7eb;border-top-color:#7c3aed;border-radius:50%;animation:unisell-spin .8s linear infinite"></span>
+            <span>Loading your workspace...</span>
+          </div>
+        </div>
+      </div>
     </div>
+    <style>@keyframes unisell-spin{to{transform:rotate(360deg)}}</style>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

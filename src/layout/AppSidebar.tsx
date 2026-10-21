@@ -323,20 +323,20 @@ const AppSidebar: React.FC = () => {
                 <img
                   className="dark:hidden"
                   src="/images/logo/logo-admin.svg"
-                  alt="Admin"
+                  alt="UniSell"
                   width={140}
                   height={32}
                 />
                 <img
                   className="hidden dark:block"
                   src="/images/logo/logo-admin-dark.svg"
-                  alt="Admin"
+                  alt="UniSell"
                   width={140}
                   height={32}
                 />
               </>
             ) : (
-              <img src="/images/logo/logo-icon.svg" alt="Admin" width={32} height={32} />
+              <img src="/images/logo/logo-icon.svg" alt="UniSell" width={32} height={32} />
             )
           ) : isExpanded || isMobileOpen ? (
             <>

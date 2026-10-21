@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router";
 import { ScrollToTop } from "./components/common/ScrollToTop";
+import AppLoading from "./components/common/AppLoading";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { setOnUnauthorized } from "./api/client";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -36,12 +37,7 @@ function AppRoutes() {
 
   return (
     <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center" role="status">
-          <span className="sr-only">Loading page...</span>
-          <span className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-teal-600" />
-        </div>
-      }
+      fallback={<AppLoading />}
     >
       <Routes>
         <Route path="/signin" element={<SignIn />} />

@@ -31,7 +31,7 @@ export default function AuthLayout({
                   width={231}
                   height={48}
                   src={logoSrc}
-                  alt={brand === "admin" ? "Admin" : "UniSell"}
+                  alt="UniSell"
                   className="w-full max-w-[231px]"
                 />
               </Link>

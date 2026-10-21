@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
+import AppLoading from "../../components/common/AppLoading";
 import { useAuth } from "../../context/AuthContext";
 import { tenantApi, authApi, type DashboardAnalytics, type TenantRow } from "../../api/client";
 import TenantDashboard from "./TenantDashboard";
@@ -86,9 +87,7 @@ export default function Home() {
     return (
       <>
         <PageMeta title={pageTitle} description="Dashboard overview" />
-        <div className="flex items-center justify-center min-h-[200px] text-gray-500 dark:text-gray-400">
-          Loading...
-        </div>
+        <AppLoading inline message="Loading your dashboard..." />
       </>
     );
   }
