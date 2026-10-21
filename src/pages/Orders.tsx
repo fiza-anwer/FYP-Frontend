@@ -294,7 +294,9 @@ export default function Orders() {
   return (
     <>
       <PageMeta title="Orders | UniSell" description="Imported orders from your integrations." />
-      <PageBreadcrumb pageTitle="Orders" />
+      <div data-tour="orders-overview">
+        <PageBreadcrumb pageTitle="Orders" />
+      </div>
       <div className="space-y-4">
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">

@@ -97,11 +97,11 @@ function formatTenantName(name: string | undefined): string {
 }
 
 const AppSidebar: React.FC = () => {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { isExpanded, isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
   const { isSuperadmin, user } = useAuth();
   const location = useLocation();
   const tenantDisplayName = user?.tenant_name ? formatTenantName(user.tenant_name) : "";
-  const showTenantName = !isSuperadmin && tenantDisplayName && (isExpanded || isHovered || isMobileOpen);
+  const showTenantName = !isSuperadmin && tenantDisplayName && (isExpanded || isMobileOpen);
 
   const navItems = useMemo(
     () => (isSuperadmin ? superadminNavItems : tenantNavItems),
@@ -177,7 +177,7 @@ const AppSidebar: React.FC = () => {
                   ? "menu-item-active"
                   : "menu-item-inactive"
               } cursor-pointer ${
-                !isExpanded && !isHovered
+                !isExpanded && !isMobileOpen
                   ? "lg:justify-center"
                   : "lg:justify-start"
               }`}
@@ -191,10 +191,10 @@ const AppSidebar: React.FC = () => {
               >
                 {nav.icon}
               </span>
-              {(isExpanded || isHovered || isMobileOpen) && (
+              {(isExpanded || isMobileOpen) && (
                 <span className="menu-item-text">{nav.name}</span>
               )}
-              {(isExpanded || isHovered || isMobileOpen) && (
+              {(isExpanded || isMobileOpen) && (
                 <ChevronDownIcon
                   className={`ml-auto w-5 h-5 transition-transform duration-200 ${
                     openSubmenu?.type === menuType &&
@@ -209,6 +209,7 @@ const AppSidebar: React.FC = () => {
             nav.path && (
               <Link
                 to={nav.path}
+                data-tour={nav.name === "Dashboard" ? "dashboard-nav-item" : undefined}
                 className={`menu-item group ${
                   isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
                 }`}
@@ -220,13 +221,13 @@ const AppSidebar: React.FC = () => {
                 >
                   {nav.icon}
                 </span>
-                {(isExpanded || isHovered || isMobileOpen) && (
+                {(isExpanded || isMobileOpen) && (
                   <span className="menu-item-text">{nav.name}</span>
                 )}
               </Link>
             )
           )}
-          {nav.subItems && (isExpanded || isHovered || isMobileOpen) && (
+          {nav.subItems && (isExpanded || isMobileOpen) && (
             <div
               ref={(el) => {
                 subMenuRefs.current[`${menuType}-${index}`] = el;
@@ -287,32 +288,37 @@ const AppSidebar: React.FC = () => {
   );
 
   return (
-    <aside
+    <>
+      <button
+        aria-expanded={isMobileOpen}
+        aria-label={isMobileOpen ? "Close sidebar" : "Open sidebar"}
+        className="fixed left-3 top-[76px] z-[60] flex h-10 w-10 items-center justify-center rounded-xl border border-teal-200/60 bg-white text-teal-600 shadow-sm hover:bg-teal-50 dark:border-teal-800/50 dark:bg-gray-900 dark:text-teal-400 dark:hover:bg-teal-500/15 lg:hidden"
+        data-tour="mobile-sidebar-toggle"
+        onClick={toggleMobileSidebar}
+        type="button"
+      >
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      <aside
       className={`fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200 
         ${
-          isExpanded || isMobileOpen
-            ? "w-[290px]"
-            : isHovered
-            ? "w-[290px]"
-            : "w-[90px]"
+          isExpanded || isMobileOpen ? "w-[290px]" : "w-[90px]"
         }
         ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
         lg:translate-x-0`}
-      onMouseEnter={() => !isExpanded && setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
-      <div
-        className={`py-8 flex ${
-          !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
-        }`}
-      >
-        <Link to="/" className="flex items-center min-w-0">
+      <div className={`flex items-center py-8 ${
+        isExpanded || isMobileOpen ? "justify-between" : "justify-center"
+      }`}>
+        <Link to="/" className={`flex items-center min-w-0 ${!isExpanded && !isMobileOpen ? "lg:hidden" : ""}`}>
           {showTenantName ? (
             <span className="text-xl font-semibold truncate text-gray-900 dark:text-white">
               {tenantDisplayName}
             </span>
           ) : isSuperadmin ? (
-            isExpanded || isHovered || isMobileOpen ? (
+            isExpanded || isMobileOpen ? (
               <>
                 <img
                   className="dark:hidden"
@@ -332,7 +338,7 @@ const AppSidebar: React.FC = () => {
             ) : (
               <img src="/images/logo/logo-icon.svg" alt="Admin" width={32} height={32} />
             )
-          ) : isExpanded || isHovered || isMobileOpen ? (
+          ) : isExpanded || isMobileOpen ? (
             <>
               <img
                 className="dark:hidden"
@@ -358,19 +364,29 @@ const AppSidebar: React.FC = () => {
             />
           )}
         </Link>
+        <button
+          aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
+          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-teal-200/60 text-teal-600 transition hover:bg-teal-50 dark:border-teal-800/50 dark:text-teal-400 dark:hover:bg-teal-500/15 lg:flex"
+          onClick={toggleSidebar}
+          type="button"
+        >
+          <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
       </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
-        <nav className="mb-6">
+        <nav className="mb-6" data-tour="sidebar-navigation">
           <div className="flex flex-col gap-4">
             <div>
               <h2
                 className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
-                  !isExpanded && !isHovered
+                  !isExpanded && !isMobileOpen
                     ? "lg:justify-center"
                     : "justify-start"
                 }`}
               >
-                {isExpanded || isHovered || isMobileOpen ? (
+                {isExpanded || isMobileOpen ? (
                   "Menu"
                 ) : (
                   <HorizontaLDots className="size-6" />
@@ -382,7 +398,8 @@ const AppSidebar: React.FC = () => {
         </nav>
         {null}
       </div>
-    </aside>
+      </aside>
+    </>
   );
 };
 

@@ -3,6 +3,7 @@ import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
 import { API_BASE, api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { useStoreTour } from "../context/StoreTourContext";
 
 type SupportContext = {
   email: string;
@@ -62,6 +63,7 @@ function statusClass(status: string) {
 
 export default function HelpSupport() {
   const { user } = useAuth();
+  const { startTour } = useStoreTour();
   const [context, setContext] = useState<SupportContext | null>(null);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [adminTickets, setAdminTickets] = useState<SupportTicket[]>([]);
@@ -270,12 +272,21 @@ export default function HelpSupport() {
       <PageMeta title="Help & Support | UniSell" description="Search UniSell help, manage support requests, and download the user manual." />
       <PageBreadcrumb pageTitle="Help & support" />
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/50">
+      <section data-tour="help-center" className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/50">
         <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Help & support</h1>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
           Search quick answers, follow a guide, or send a support request. Signed in as{" "}
           <span className="font-medium text-gray-900 dark:text-gray-100">{context?.email || user?.email || "your account"}</span>.
         </p>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-violet-50 px-4 py-3 dark:bg-violet-950/30">
+          <div>
+            <h2 className="font-semibold text-gray-900 dark:text-white">Getting started</h2>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Take a quick tour of the main store tools whenever you need a refresher.</p>
+          </div>
+          <button className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700" type="button" onClick={startTour}>
+            Replay store tour
+          </button>
+        </div>
         <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-300">
           Search help articles
           <input

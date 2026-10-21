@@ -14,6 +14,7 @@ import Label from "../components/form/Label";
 import TextArea from "../components/form/input/TextArea";
 import Radio from "../components/form/input/Radio";
 import Checkbox from "../components/form/input/Checkbox";
+import { useStoreTour } from "../context/StoreTourContext";
 import { PlusIcon, TrashBinIcon } from "../icons";
 
 type SortKey = "name_asc" | "name_desc" | "price_asc" | "price_desc" | "newest" | "oldest";
@@ -100,6 +101,7 @@ function emptyForm() {
 }
 
 export default function Products() {
+  const { startPageTour } = useStoreTour();
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -661,7 +663,17 @@ export default function Products() {
         title="Products | UniSell"
         description="All products from your connected stores and local catalog."
       />
-      <PageBreadcrumb pageTitle="Products" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <PageBreadcrumb pageTitle="Products" />
+        <button
+          aria-label="Take the Products tour"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-sm font-semibold text-gray-600 hover:border-violet-400 hover:text-violet-700 dark:border-gray-700 dark:text-gray-300"
+          type="button"
+          onClick={() => startPageTour("products")}
+        >
+          ?
+        </button>
+      </div>
 
       <div className="space-y-4">
         {error && (
@@ -683,6 +695,7 @@ export default function Products() {
               syncWarning
             )}
             <button
+              data-tour="products-add"
               type="button"
               onClick={() => setSyncWarning(null)}
               className="ml-2 underline focus:outline-none"
@@ -694,6 +707,8 @@ export default function Products() {
 
         {formVisible ? (
           <div
+            data-tour="products-add"
+            data-tour-form="products-list"
             ref={formContainerRef}
             className="overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900/50"
           >
@@ -1253,7 +1268,7 @@ export default function Products() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-200/90 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900/50">
+            <div className="rounded-2xl border border-gray-200/90 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900/50" data-tour="products-list">
               <DataGrid
                 columns={columns}
                 data={filteredAndSorted}

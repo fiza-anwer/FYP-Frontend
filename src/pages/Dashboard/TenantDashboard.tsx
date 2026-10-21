@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
-import type { DashboardAnalytics } from "../../api/client";
+import { tenantApi, type DashboardAnalytics } from "../../api/client";
 import DashboardOrdersLineChart from "../../components/dashboard/DashboardOrdersLineChart";
 import DashboardRevenueBarChart from "../../components/dashboard/DashboardRevenueBarChart";
 import DashboardGradientKpi from "../../components/dashboard/DashboardGradientKpi";
 import DashboardPanel from "../../components/dashboard/DashboardPanel";
 import Badge from "../../components/ui/badge/Badge";
 import { useAuth } from "../../context/AuthContext";
+import { onboardingStorageKey } from "../../context/StoreTourContext";
 import {
   AlertHexaIcon,
   ArrowRightIcon,
@@ -130,11 +131,55 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
   const revenueSpark = data.revenue_by_month.slice(-10).map((m) => m.revenue);
   const maxTop = Math.max(1, ...data.top_products.map((p) => p.order_count));
   const orders30Sum = data.orders_by_day.reduce((s, d) => s + d.count, 0);
+  const [activeIntegration, setActiveIntegration] = useState<boolean | null>(null);
+  const [processedOrder, setProcessedOrder] = useState<boolean | null>(null);
+  const [integrationError, setIntegrationError] = useState("");
+  const [orderProgressError, setOrderProgressError] = useState("");
+  const [checklistDismissed, setChecklistDismissed] = useState(
+    () => localStorage.getItem(`${onboardingStorageKey(user)}:checklist-dismissed`) === "true"
+  );
+  const loadIntegrationProgress = useCallback(async () => {
+    setIntegrationError("");
+    setOrderProgressError("");
+    setActiveIntegration(null);
+    setProcessedOrder(null);
+    const [integrationsResult, ordersResult] = await Promise.allSettled([
+      tenantApi.getCompanyIntegrations(),
+      tenantApi.getOrders(),
+    ]);
+    if (integrationsResult.status === "fulfilled") {
+      setActiveIntegration(integrationsResult.value.company_integrations.some((integration) => integration.status === 1));
+    } else {
+      setIntegrationError(integrationsResult.reason instanceof Error ? integrationsResult.reason.message : "Could not check integration setup.");
+    }
+    if (ordersResult.status === "fulfilled") {
+      setProcessedOrder(ordersResult.value.orders.some((order) =>
+        ["consigned", "dispatched", "fulfilled"].includes(order.status.toLowerCase()) ||
+        order.fulfillment_status?.toLowerCase() === "fulfilled"
+      ));
+    } else {
+      setOrderProgressError(ordersResult.reason instanceof Error ? ordersResult.reason.message : "Could not check order progress.");
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadIntegrationProgress();
+  }, [loadIntegrationProgress]);
+
+  const checklist = [
+    { label: "Create your account", path: "/profile", done: true },
+    { label: "Complete your profile", path: "/profile", done: Boolean((user?.name?.trim() || user?.tenant_name?.trim() || user?.username?.trim()) && (user?.email || user?.username)) },
+    { label: "Add your first product", path: "/products", done: summary.total_products > 0 },
+    { label: "Connect an integration", path: "/company-integrations", done: activeIntegration === true },
+    { label: "Process your first order", path: "/orders", done: processedOrder === true },
+  ];
+  const completedChecklistItems = checklist.filter((item) => item.done).length;
+  const checklistComplete = completedChecklistItems === checklist.length;
 
   return (
     <div className="space-y-6 pb-6">
       {/* Welcome + KPI — Skydash / Star Admin style */}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12" data-tour="dashboard-overview">
         <div className="relative overflow-hidden rounded-xl border border-gray-100 bg-white p-6 shadow-[0_2px_20px_rgba(0,0,0,0.06)] dark:border-gray-800 dark:bg-gray-900 xl:col-span-5">
           <div className="pointer-events-none absolute -right-10 top-0 h-40 w-40 rounded-full bg-violet-100/80 blur-2xl dark:bg-violet-900/30" />
           <div className="pointer-events-none absolute bottom-0 right-4 hidden h-32 w-32 opacity-90 sm:block">
@@ -209,6 +254,57 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
           />
         </div>
       </div>
+
+      {!checklistDismissed && (
+        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900/50" aria-labelledby="getting-started-checklist-title">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">Getting started</p>
+              <h2 id="getting-started-checklist-title" className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">Set up your store</h2>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{completedChecklistItems} of {checklist.length} done</p>
+            </div>
+            {checklistComplete && (
+              <button
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
+                type="button"
+                onClick={() => {
+                  localStorage.setItem(`${onboardingStorageKey(user)}:checklist-dismissed`, "true");
+                  setChecklistDismissed(true);
+                }}
+              >
+                Dismiss checklist
+              </button>
+            )}
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800" role="progressbar" aria-label="Getting started progress" aria-valuemin={0} aria-valuemax={checklist.length} aria-valuenow={completedChecklistItems}>
+            <div className="h-full rounded-full bg-violet-600 transition-all" style={{ width: `${(completedChecklistItems / checklist.length) * 100}%` }} />
+          </div>
+          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+            {checklist.map((item) => (
+              <li key={item.label}>
+                <Link className="flex items-center gap-3 rounded-lg px-2 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5" to={item.path}>
+                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs ${item.done ? "border-green-600 bg-green-600 text-white" : "border-gray-300 text-transparent dark:border-gray-600"}`} aria-label={item.done ? "Completed" : "Not completed"}>
+                    ✓
+                  </span>
+                  <span className={item.done ? "text-gray-500 line-through dark:text-gray-400" : ""}>{item.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {integrationError && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-amber-700 dark:text-amber-400" role="status">
+              <span>Could not verify integration progress: {integrationError}</span>
+              <button className="font-semibold underline" type="button" onClick={() => void loadIntegrationProgress()}>Try again</button>
+            </div>
+          )}
+          {orderProgressError && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-amber-700 dark:text-amber-400" role="status">
+              <span>Could not verify order progress: {orderProgressError}</span>
+              <button className="font-semibold underline" type="button" onClick={() => void loadIntegrationProgress()}>Try again</button>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Hero products — Purple Admin featured cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

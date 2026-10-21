@@ -8,8 +8,10 @@ import Label from "../components/form/Label";
 import Input from "../components/form/input/InputField";
 import Checkbox from "../components/form/input/Checkbox";
 import SetupFormShell, { SetupFormAside, SetupFormSection } from "../components/setup/SetupFormShell";
+import { useStoreTour } from "../context/StoreTourContext";
 
 export default function CompanyIntegrations() {
+  const { startPageTour } = useStoreTour();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [integrations, setIntegrations] = useState<Array<{ id: string; name: string; slug: string; credentials_schema: IntegrationCredentialSchema[] }>>([]);
   const [companyIntegrations, setCompanyIntegrations] = useState<CompanyIntegration[]>([]);
@@ -293,7 +295,17 @@ export default function CompanyIntegrations() {
   return (
     <div>
       <PageMeta title="Company Integrations | UniSell" description="Manage your company integrations." />
-      <PageBreadcrumb pageTitle="Company Integrations" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <PageBreadcrumb pageTitle="Company Integrations" />
+        <button
+          aria-label="Take the Integrations tour"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-sm font-semibold text-gray-600 hover:border-violet-400 hover:text-violet-700 dark:border-gray-700 dark:text-gray-300"
+          type="button"
+          onClick={() => startPageTour("integrations")}
+        >
+          ?
+        </button>
+      </div>
       <div className="space-y-4">
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
@@ -307,7 +319,7 @@ export default function CompanyIntegrations() {
         )}
 
         {formVisible ? (
-          <div ref={formContainerRef}>
+          <div ref={formContainerRef} data-tour="integrations-add" data-tour-form="integrations-list">
             <SetupFormShell
               title={editing ? "Edit integration" : "Add integration"}
               subtitle="Connect a marketplace or sales channel to sync orders, products, and inventory."
@@ -487,6 +499,7 @@ export default function CompanyIntegrations() {
           <>
             <div className="flex justify-end">
               <button
+                data-tour="integrations-add"
                 type="button"
                 onClick={openCreate}
                 className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
@@ -494,13 +507,15 @@ export default function CompanyIntegrations() {
                 Add integration
               </button>
             </div>
-            <DataGrid
-              columns={integrationColumns}
-              data={companyIntegrations}
-              keyExtractor={(ci) => ci.id}
-              emptyMessage="No integrations yet. Click Add integration to connect a store."
-              loading={loading}
-            />
+            <div data-tour="integrations-list">
+              <DataGrid
+                columns={integrationColumns}
+                data={companyIntegrations}
+                keyExtractor={(ci) => ci.id}
+                emptyMessage="No integrations yet. Click Add integration to connect a store."
+                loading={loading}
+              />
+            </div>
           </>
         )}
       </div>
