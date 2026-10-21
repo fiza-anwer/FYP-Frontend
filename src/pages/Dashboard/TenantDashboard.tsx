@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { tenantApi, type DashboardAnalytics } from "../../api/client";
-import DashboardOrdersLineChart from "../../components/dashboard/DashboardOrdersLineChart";
-import DashboardRevenueBarChart from "../../components/dashboard/DashboardRevenueBarChart";
 import DashboardGradientKpi from "../../components/dashboard/DashboardGradientKpi";
 import DashboardPanel from "../../components/dashboard/DashboardPanel";
+import DeferredChart from "../../components/dashboard/DeferredChart";
 import Badge from "../../components/ui/badge/Badge";
 import { useAuth } from "../../context/AuthContext";
 import { onboardingStorageKey } from "../../context/StoreTourContext";
+
+const DashboardOrdersLineChart = lazy(() => import("../../components/dashboard/DashboardOrdersLineChart"));
+const DashboardRevenueBarChart = lazy(() => import("../../components/dashboard/DashboardRevenueBarChart"));
 import {
   AlertHexaIcon,
   ArrowRightIcon,
@@ -332,7 +334,11 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
               <StatPill label="Total orders" value={summary.total_orders} accent="text-violet-600" />
               <StatPill label="Slow movers" value={data.stale_products.length} accent="text-amber-600" />
             </div>
-            <DashboardOrdersLineChart data={data.orders_by_day} />
+            <Suspense fallback={<div className="h-[300px] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" role="status"><span className="sr-only">Loading chart...</span></div>}>
+              <DeferredChart>
+                <DashboardOrdersLineChart data={data.orders_by_day} />
+              </DeferredChart>
+            </Suspense>
           </DashboardPanel>
         </div>
 
@@ -386,7 +392,11 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         <div className="xl:col-span-8">
           <DashboardPanel title="Revenue report" subtitle="Monthly revenue — last 12 months">
-            <DashboardRevenueBarChart data={data.revenue_by_month} />
+            <Suspense fallback={<div className="h-[300px] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" role="status"><span className="sr-only">Loading chart...</span></div>}>
+              <DeferredChart>
+                <DashboardRevenueBarChart data={data.revenue_by_month} />
+              </DeferredChart>
+            </Suspense>
           </DashboardPanel>
         </div>
 

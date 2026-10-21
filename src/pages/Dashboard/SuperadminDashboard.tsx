@@ -1,9 +1,9 @@
+import { lazy, Suspense } from "react";
 import { Link } from "react-router";
 import type { TenantRow } from "../../api/client";
-import DashboardOrdersLineChart from "../../components/dashboard/DashboardOrdersLineChart";
-import DashboardRevenueBarChart from "../../components/dashboard/DashboardRevenueBarChart";
 import DashboardGradientKpi from "../../components/dashboard/DashboardGradientKpi";
 import DashboardPanel from "../../components/dashboard/DashboardPanel";
+import DeferredChart from "../../components/dashboard/DeferredChart";
 import Badge from "../../components/ui/badge/Badge";
 import {
   ArrowRightIcon,
@@ -12,6 +12,9 @@ import {
   GroupIcon,
   TimeIcon,
 } from "../../icons";
+
+const DashboardOrdersLineChart = lazy(() => import("../../components/dashboard/DashboardOrdersLineChart"));
+const DashboardRevenueBarChart = lazy(() => import("../../components/dashboard/DashboardRevenueBarChart"));
 
 function formatTenantName(name: string): string {
   if (!name) return "—";
@@ -178,12 +181,20 @@ export default function SuperadminDashboard({ tenants }: { tenants: TenantRow[] 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         <div className="xl:col-span-8">
           <DashboardPanel title="Tenant signups" subtitle="New registrations — last 30 days">
-            <DashboardOrdersLineChart data={signups} />
+            <Suspense fallback={<div className="h-[300px] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" role="status"><span className="sr-only">Loading chart...</span></div>}>
+              <DeferredChart>
+                <DashboardOrdersLineChart data={signups} />
+              </DeferredChart>
+            </Suspense>
           </DashboardPanel>
         </div>
         <div className="xl:col-span-4">
           <DashboardPanel title="Status overview" subtitle="By approval state">
-            <DashboardRevenueBarChart data={statusChart} />
+            <Suspense fallback={<div className="h-[300px] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" role="status"><span className="sr-only">Loading chart...</span></div>}>
+              <DeferredChart>
+                <DashboardRevenueBarChart data={statusChart} />
+              </DeferredChart>
+            </Suspense>
           </DashboardPanel>
         </div>
       </div>

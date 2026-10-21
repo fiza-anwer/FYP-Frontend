@@ -1,27 +1,28 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router";
-import SignIn from "./pages/AuthPages/SignIn";
-import SignUp from "./pages/AuthPages/SignUp";
-import NotFound from "./pages/OtherPage/NotFound";
-import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
-import Home from "./pages/Dashboard/Home";
-import Orders from "./pages/Orders";
-import Companies from "./pages/Companies";
-import CompanyIntegrations from "./pages/CompanyIntegrations";
-import CarrierIntegrations from "./pages/CarrierIntegrations";
-import CarrierIntegrationServices from "./pages/CarrierIntegrationServices";
-import Consignments from "./pages/Consignments";
-import Products from "./pages/Products";
-import Inventory from "./pages/Inventory";
-import InventoryAdjust from "./pages/InventoryAdjust";
-import MyProfile from "./pages/MyProfile";
-import HelpSupport from "./pages/HelpSupport";
-import EmailChangeAction from "./pages/EmailChangeAction";
-import SuperadminTenants from "./pages/Superadmin/Tenants";
 import { setOnUnauthorized } from "./api/client";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+
+const SignIn = lazy(() => import("./pages/AuthPages/SignIn"));
+const SignUp = lazy(() => import("./pages/AuthPages/SignUp"));
+const NotFound = lazy(() => import("./pages/OtherPage/NotFound"));
+const AppLayout = lazy(() => import("./layout/AppLayout"));
+const Home = lazy(() => import("./pages/Dashboard/Home"));
+const Orders = lazy(() => import("./pages/Orders"));
+const Companies = lazy(() => import("./pages/Companies"));
+const CompanyIntegrations = lazy(() => import("./pages/CompanyIntegrations"));
+const CarrierIntegrations = lazy(() => import("./pages/CarrierIntegrations"));
+const CarrierIntegrationServices = lazy(() => import("./pages/CarrierIntegrationServices"));
+const Consignments = lazy(() => import("./pages/Consignments"));
+const Products = lazy(() => import("./pages/Products"));
+const Inventory = lazy(() => import("./pages/Inventory"));
+const InventoryAdjust = lazy(() => import("./pages/InventoryAdjust"));
+const MyProfile = lazy(() => import("./pages/MyProfile"));
+const HelpSupport = lazy(() => import("./pages/HelpSupport"));
+const EmailChangeAction = lazy(() => import("./pages/EmailChangeAction"));
+const SuperadminTenants = lazy(() => import("./pages/Superadmin/Tenants"));
 
 function AppRoutes() {
   const { logout } = useAuth();
@@ -34,31 +35,40 @@ function AppRoutes() {
   }, [logout]);
 
   return (
-    <Routes>
-      <Route path="/signin" element={<SignIn />} />
-      <Route path="/signup" element={<SignUp />} />
-      <Route path="/email-change" element={<EmailChangeAction />} />
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center" role="status">
+          <span className="sr-only">Loading page...</span>
+          <span className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-teal-600" />
+        </div>
+      }
+    >
+      <Routes>
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/email-change" element={<EmailChangeAction />} />
 
-      <Route element={<ProtectedRoute />}>
-        <Route element={<AppLayout />}>
-          <Route index path="/" element={<Home />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/consignments" element={<Consignments />} />
-          <Route path="/companies" element={<Companies />} />
-          <Route path="/company-integrations" element={<CompanyIntegrations />} />
-          <Route path="/carrier-integrations" element={<CarrierIntegrations />} />
-          <Route path="/carrier-integration-services" element={<CarrierIntegrationServices />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/inventory/:productId/adjust" element={<InventoryAdjust />} />
-          <Route path="/profile" element={<MyProfile />} />
-          <Route path="/help-support" element={<HelpSupport />} />
-          <Route path="/superadmin/tenants" element={<SuperadminTenants />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            <Route index path="/" element={<Home />} />
+            <Route path="/orders" element={<Orders />} />
+            <Route path="/consignments" element={<Consignments />} />
+            <Route path="/companies" element={<Companies />} />
+            <Route path="/company-integrations" element={<CompanyIntegrations />} />
+            <Route path="/carrier-integrations" element={<CarrierIntegrations />} />
+            <Route path="/carrier-integration-services" element={<CarrierIntegrationServices />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/inventory" element={<Inventory />} />
+            <Route path="/inventory/:productId/adjust" element={<InventoryAdjust />} />
+            <Route path="/profile" element={<MyProfile />} />
+            <Route path="/help-support" element={<HelpSupport />} />
+            <Route path="/superadmin/tenants" element={<SuperadminTenants />} />
+          </Route>
         </Route>
-      </Route>
 
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
   );
 }
 

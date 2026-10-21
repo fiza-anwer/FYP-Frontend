@@ -170,6 +170,30 @@ export default function Products() {
     }
   }, [formVisible]);
 
+  useEffect(() => {
+    if (!formVisible) return;
+
+    const handleBackspace = (event: KeyboardEvent) => {
+      if (event.key !== "Backspace") return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest("input, textarea, select, [contenteditable='true']"))
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      setFormVisible(false);
+      setEditing(null);
+      setEditingVariantIndex(null);
+    };
+
+    document.addEventListener("keydown", handleBackspace);
+    return () => document.removeEventListener("keydown", handleBackspace);
+  }, [formVisible]);
+
   const openCreateForm = (prefill?: ReturnType<typeof emptyForm>) => {
     setError("");
     setEditing(null);

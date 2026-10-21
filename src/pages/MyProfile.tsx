@@ -433,7 +433,7 @@ export default function MyProfile() {
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Two-factor authentication</h2>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Use an authenticator app to require a time-based code when signing in.
+                  Verify with your authenticator on a new browser, then again after six months on that browser.
                 </p>
               </div>
               <span className={`rounded-full px-3 py-1 text-xs font-medium ${twoFactorEnabled ? "bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}`}>

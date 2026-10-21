@@ -367,6 +367,7 @@ export const authApi = {
   login: (body: { email: string; password: string }) =>
     fetch(`${API_BASE}/api/auth/login`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).then(async (res) => {
@@ -377,6 +378,7 @@ export const authApi = {
   verifyTwoFactor: (body: { challenge_token: string; code: string }) =>
     fetch(`${API_BASE}/api/auth/two-factor/login`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).then(async (res) => {
