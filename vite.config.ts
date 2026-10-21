@@ -15,4 +15,15 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (/node_modules[\\/](apexcharts|react-apexcharts)[\\/]/.test(id)) {
+            return "charts-vendor";
+          }
+        },
+      },
+    },
+  },
 });
