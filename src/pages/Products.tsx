@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { Link, useSearchParams } from "react-router";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
+import StickyToolbar from "../components/common/StickyToolbar";
 import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
 import {
   ProductNameCell,
@@ -1332,7 +1333,7 @@ export default function Products() {
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <StickyToolbar className="flex flex-wrap items-center justify-between gap-4">
               <div className="min-w-[200px] flex-1">
                 <Input
                   type="search"
@@ -1449,7 +1450,7 @@ export default function Products() {
                   Add product
                 </button>
               </div>
-            </div>
+            </StickyToolbar>
 
             <div className="rounded-2xl border border-gray-200/90 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900/50">
               <DataGrid
