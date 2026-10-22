@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
+import StickyToolbar from "../components/common/StickyToolbar";
 import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
 import { tenantApi, openConsignmentLabel, type Order, type Consignment, type Company } from "../api/client";
 import { OrderChannelCell, OrderSyncStatus } from "../components/common/ChannelSyncStatus";
@@ -244,7 +245,7 @@ export default function Consignments() {
         <p className="text-sm text-gray-600 dark:text-gray-400">
           Orders that already have a consignment. Print labels and dispatch only for orders with a shipping address. Track after dispatch.
         </p>
-        <div className="flex flex-wrap items-center gap-4 py-2">
+        <StickyToolbar className="flex flex-wrap items-center gap-4 py-2">
           <select
             value={companyFilter}
             onChange={(e) => setCompanyFilter(e.target.value)}
@@ -280,7 +281,7 @@ export default function Consignments() {
               {selectedIds.size - selectedWithAddress.length} selected have no address or are already dispatched — excluded.
             </span>
           )}
-        </div>
+        </StickyToolbar>
         <DataGrid
           columns={columns}
           data={sortedRows}
