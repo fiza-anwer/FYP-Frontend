@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
+import StickyToolbar from "../components/common/StickyToolbar";
 import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
 import { tenantApi, type CarrierIntegration, type CarrierIntegrationService } from "../api/client";
 import Label from "../components/form/Label";
@@ -226,7 +227,7 @@ export default function CarrierIntegrationServices() {
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-4">
+            <StickyToolbar className="flex flex-wrap items-center gap-4">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Carrier integration</label>
               <select
                 value={filterCarrierIntegrationId}
@@ -247,7 +248,7 @@ export default function CarrierIntegrationServices() {
               >
                 Add service
               </button>
-            </div>
+            </StickyToolbar>
             <DataGrid
               columns={columns}
               data={services}
