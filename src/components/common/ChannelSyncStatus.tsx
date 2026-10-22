@@ -1,4 +1,7 @@
 import type { CompanyIntegration, Order, Product } from "../../api/client";
+/** Bundled into the build (hashed URL) so deploy + ad blockers can't break them. */
+import platformSfLogo from "../../assets/brand/platform-sf.png";
+import platformDzLogo from "../../assets/brand/platform-dz.png";
 
 export type ChannelSlug = "shopify" | "daraz";
 
@@ -141,11 +144,10 @@ export function ProductSyncStatus({ product }: { product: Product }) {
   return <SyncStatusBadge synced={isProductSynced(product)} />;
 }
 
-/** Neutral filenames — ad blockers often hide URLs containing "shopify". */
 function ShopifyLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
     <img
-      src="/images/brand/platform-sf.png"
+      src={platformSfLogo}
       alt="Shopify"
       className={`object-contain ${className}`}
       width={32}
@@ -158,7 +160,7 @@ function ShopifyLogo({ className = "h-8 w-8" }: { className?: string }) {
 function DarazLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
     <img
-      src="/images/brand/platform-dz.png"
+      src={platformDzLogo}
       alt="Daraz"
       className={`rounded-sm object-contain ${className}`}
       width={32}
@@ -274,7 +276,7 @@ export function ProductPlatformLogos({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-nowrap items-center gap-2">
       {platforms.map((slug) => {
         let state = channelSyncState(product, slug, targets) || "pending";
         if (state !== "synced") {
