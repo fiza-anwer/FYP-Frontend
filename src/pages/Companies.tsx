@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
+import StickyToolbar from "../components/common/StickyToolbar";
 import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
 import { tenantApi, type Company } from "../api/client";
 import Label from "../components/form/Label";
@@ -234,7 +235,7 @@ export default function Companies() {
           </div>
         ) : (
           <>
-            <div className="flex justify-end">
+            <StickyToolbar className="flex justify-end">
               <button
                 type="button"
                 onClick={openCreate}
@@ -242,7 +243,7 @@ export default function Companies() {
               >
                 Add company
               </button>
-            </div>
+            </StickyToolbar>
             <DataGrid
               columns={columns}
               data={companies}
