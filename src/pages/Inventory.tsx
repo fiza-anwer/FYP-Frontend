@@ -106,6 +106,8 @@ export default function Inventory() {
       list = list.filter(
         (row) => !!row.product.daraz_synced || (row.product.source || "").toLowerCase() === "daraz"
       );
+    } else if (platformFilter === "both") {
+      list = list.filter((row) => !!row.product.shopify_synced && !!row.product.daraz_synced);
     } else if (platformFilter === "local") {
       list = list.filter(
         (row) =>
@@ -341,6 +343,7 @@ export default function Inventory() {
             aria-label="Filter by platform"
           >
             <option value="">All platforms</option>
+            <option value="both">Both (Shopify + Daraz)</option>
             <option value="shopify">Shopify</option>
             <option value="daraz">Daraz</option>
             <option value="local">Local only</option>
