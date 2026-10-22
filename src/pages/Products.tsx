@@ -123,6 +123,7 @@ export default function Products() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyIntegrations, setCompanyIntegrations] = useState<CompanyIntegration[]>([]);
   const [companyFilter, setCompanyFilter] = useState("");
+  const [platformFilter, setPlatformFilter] = useState("");
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
   const [listingChoiceOpen, setListingChoiceOpen] = useState(false);
   const [aiKeywordsOpen, setAiKeywordsOpen] = useState(false);
@@ -522,6 +523,25 @@ export default function Products() {
       const typeLower = typeFilter.trim().toLowerCase();
       list = list.filter((row) => (row.product.product_type ?? "").trim().toLowerCase() === typeLower);
     }
+    if (platformFilter === "shopify") {
+      list = list.filter(
+        (row) =>
+          !!row.product.shopify_synced || (row.product.source || "").toLowerCase() === "shopify"
+      );
+    } else if (platformFilter === "daraz") {
+      list = list.filter(
+        (row) => !!row.product.daraz_synced || (row.product.source || "").toLowerCase() === "daraz"
+      );
+    } else if (platformFilter === "both") {
+      list = list.filter((row) => !!row.product.shopify_synced && !!row.product.daraz_synced);
+    } else if (platformFilter === "local") {
+      list = list.filter(
+        (row) =>
+          !row.product.shopify_synced &&
+          !row.product.daraz_synced &&
+          (row.product.source || "local").toLowerCase() === "local"
+      );
+    }
     const rowPrice = (row: ProductListRow) => row.variant?.price ?? row.product.price ?? 0;
     switch (sort) {
       case "name_asc":
@@ -553,7 +573,7 @@ export default function Products() {
         break;
     }
     return list;
-  }, [flattenedRows, search, statusFilter, typeFilter, sort]);
+  }, [flattenedRows, search, statusFilter, typeFilter, platformFilter, sort]);
 
   const selectedRows = useMemo(
     () => filteredAndSorted.filter((row) => selectedRowIds.includes(getRowId(row))),
@@ -1288,6 +1308,18 @@ export default function Products() {
                       {c.name}
                     </option>
                   ))}
+                </select>
+                <select
+                  value={platformFilter}
+                  onChange={(e) => setPlatformFilter(e.target.value)}
+                  className="h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                  aria-label="Filter by platform"
+                >
+                  <option value="">All platforms</option>
+                  <option value="both">Both (Shopify + Daraz)</option>
+                  <option value="shopify">Shopify</option>
+                  <option value="daraz">Daraz</option>
+                  <option value="local">Local only</option>
                 </select>
                 <select
                   value={statusFilter}
