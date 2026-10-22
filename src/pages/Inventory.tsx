@@ -1,10 +1,19 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
 import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
-import { ProductChannelCell, ProductSyncStatus } from "../components/common/ChannelSyncStatus";
-import { tenantApi, type Company, type Product, type ProductVariant } from "../api/client";
+import {
+  ProductNameCell,
+  ProductPlatformLogos,
+} from "../components/common/ChannelSyncStatus";
+import {
+  tenantApi,
+  type Company,
+  type CompanyIntegration,
+  type Product,
+  type ProductVariant,
+} from "../api/client";
 
 type InventoryRow = {
   product: Product;
@@ -19,6 +28,7 @@ function getRowId(row: InventoryRow): string {
 export default function Inventory() {
   const [products, setProducts] = useState<Product[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [companyIntegrations, setCompanyIntegrations] = useState<CompanyIntegration[]>([]);
   const [companyFilter, setCompanyFilter] = useState("");
   const [platformFilter, setPlatformFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -31,11 +41,13 @@ export default function Inventory() {
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
+  const [retryingKey, setRetryingKey] = useState<string | null>(null);
+  const [failedSyncKeys, setFailedSyncKeys] = useState<Set<string>>(() => new Set());
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const outOfStockOnly = searchParams.get("stock") === "out";
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setError("");
     try {
       const params: { company_id?: string; product_type?: string; sort?: string } = {};
@@ -53,11 +65,18 @@ export default function Inventory() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [companyFilter, typeFilter, sort]);
 
   useEffect(() => {
-    load();
-  }, [companyFilter, typeFilter, sort]);
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    tenantApi
+      .getCompanyIntegrations()
+      .then((res) => setCompanyIntegrations(res.company_integrations || []))
+      .catch(() => setCompanyIntegrations([]));
+  }, []);
 
   const flattenedRows = useMemo(() => {
     const rows: InventoryRow[] = [];
@@ -217,60 +236,131 @@ export default function Inventory() {
     }
   };
 
-  const columns: DataGridColumn<InventoryRow>[] = [
-    {
-      key: "title",
-      label: "Product",
-      render: (_, row) => (
-        <span className="font-medium text-gray-900 dark:text-white">
-          {row.product.title || "—"}
-        </span>
-      ),
+  const handleRetryShopify = useCallback(
+    async (product: Product) => {
+      const key = `${product.id}:shopify`;
+      setError("");
+      setSyncMessage("");
+      setRetryingKey(key);
+      try {
+        await tenantApi.pushProductToShopify(product.id);
+        setFailedSyncKeys((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
+        setSyncMessage("Pushed to Shopify.");
+        await load();
+      } catch (err) {
+        setFailedSyncKeys((prev) => new Set(prev).add(key));
+        setError(err instanceof Error ? err.message : "Push to Shopify failed.");
+      } finally {
+        setRetryingKey(null);
+      }
     },
-    {
-      key: "sku",
-      label: "SKU",
-      render: (_, row) => {
-        const sku = row.variant?.sku ?? row.product.sku;
-        return sku ? String(sku) : "—";
+    [load]
+  );
+
+  const handleRetryDaraz = useCallback(
+    async (product: Product) => {
+      const key = `${product.id}:daraz`;
+      setError("");
+      setSyncMessage("");
+      setRetryingKey(key);
+      try {
+        const data = await tenantApi.pushProductToDaraz(product.id);
+        setFailedSyncKeys((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
+        setSyncMessage(data?.message || "Pushed to Daraz.");
+        await load();
+      } catch (err) {
+        setFailedSyncKeys((prev) => new Set(prev).add(key));
+        setError(err instanceof Error ? err.message : "Push to Daraz failed.");
+      } finally {
+        setRetryingKey(null);
+      }
+    },
+    [load]
+  );
+
+  const columns: DataGridColumn<InventoryRow>[] = useMemo(() => {
+    const cols: DataGridColumn<InventoryRow>[] = [
+      {
+        key: "title",
+        label: "Product",
+        render: (_, row) => (
+          <ProductNameCell
+            title={row.product.title}
+            status={row.product.status}
+            className="font-medium text-gray-900 dark:text-white"
+          />
+        ),
       },
-    },
-    {
-      key: "option",
-      label: "Variant (e.g. Size/Color)",
-      render: (_, row) => String(row.variant?.option1 ?? row.variant?.title ?? "—"),
-    },
-    {
-      key: "quantity",
-      label: "Available (total)",
-      render: (_, row) => (typeof row.product.quantity === "number" ? row.product.quantity : 0),
-    },
-    {
-      key: "allocated",
-      label: "Allocated (ordered)",
-      render: (_, row) => (typeof row.product.allocated === "number" ? row.product.allocated : 0),
-    },
-    {
-      key: "free",
-      label: "Free stock",
-      render: (_, row) => {
-        const qty = typeof row.product.quantity === "number" ? row.product.quantity : 0;
-        const alloc = typeof row.product.allocated === "number" ? row.product.allocated : 0;
-        const free = Math.max(0, qty - alloc);
-        return free;
+      {
+        key: "sku",
+        label: "SKU",
+        render: (_, row) => {
+          const sku = row.variant?.sku ?? row.product.sku;
+          return sku ? String(sku) : "—";
+        },
       },
-    },
-    {
-      key: "channel",
-      label: "Company",
-      render: (_, row) => <ProductChannelCell product={row.product} />,
-    },
-    {
-      key: "sync_status",
-      label: "Status",
-      render: (_, row) => <ProductSyncStatus product={row.product} />,
-    },
-  ];
+      {
+        key: "option",
+        label: "Variant (e.g. Size/Color)",
+        render: (_, row) => String(row.variant?.option1 ?? row.variant?.title ?? "—"),
+      },
+      {
+        key: "quantity",
+        label: "Available (total)",
+        render: (_, row) => (typeof row.product.quantity === "number" ? row.product.quantity : 0),
+      },
+      {
+        key: "allocated",
+        label: "Allocated (ordered)",
+        render: (_, row) => (typeof row.product.allocated === "number" ? row.product.allocated : 0),
+      },
+      {
+        key: "free",
+        label: "Free stock",
+        render: (_, row) => {
+          const qty = typeof row.product.quantity === "number" ? row.product.quantity : 0;
+          const alloc = typeof row.product.allocated === "number" ? row.product.allocated : 0;
+          return Math.max(0, qty - alloc);
+        },
+      },
+    ];
+
+    if (platformFilter === "") {
+      cols.push({
+        key: "platform",
+        label: "Platform",
+        render: (_, row) => (
+          <ProductPlatformLogos
+            product={row.product}
+            companyIntegrations={companyIntegrations}
+            onRetryShopify={handleRetryShopify}
+            onRetryDaraz={handleRetryDaraz}
+            retryingShopify={retryingKey === `${row.product.id}:shopify`}
+            retryingDaraz={retryingKey === `${row.product.id}:daraz`}
+            failedShopify={failedSyncKeys.has(`${row.product.id}:shopify`)}
+            failedDaraz={failedSyncKeys.has(`${row.product.id}:daraz`)}
+          />
+        ),
+      });
+    }
+
+    return cols;
+  }, [
+    platformFilter,
+    companyIntegrations,
+    handleRetryShopify,
+    handleRetryDaraz,
+    retryingKey,
+    failedSyncKeys,
+  ]);
 
   return (
     <div>
