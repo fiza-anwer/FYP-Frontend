@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
+import StickyToolbar from "../components/common/StickyToolbar";
 import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
 import {
   ProductNameCell,
@@ -389,7 +390,7 @@ export default function Inventory() {
             </button>
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-4 py-2">
+        <StickyToolbar className="flex flex-wrap items-center gap-4 py-2">
           <input
             type="text"
             value={search}
@@ -521,7 +522,7 @@ export default function Inventory() {
           >
             {syncing ? "Syncing…" : "Sync"}
           </button>
-        </div>
+        </StickyToolbar>
         <p className="text-sm text-gray-600 dark:text-gray-400">
           Available = on-hand stock. Allocated = reserved by orders. Select a row then Edit (or double-click) to adjust stock; changes sync to Shopify/Daraz.
         </p>
