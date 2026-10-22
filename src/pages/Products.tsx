@@ -4,10 +4,9 @@ import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
 import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
 import {
-  ProductChannelCell,
-  ProductSyncStatus,
+  ProductNameCell,
+  ProductPlatformLogos,
   getProductPushTargets,
-  productStatusLabel,
 } from "../components/common/ChannelSyncStatus";
 import { tenantApi, type Product, type ProductVariant, type Company, type CompanyIntegration } from "../api/client";
 import Input from "../components/form/input/InputField";
@@ -124,6 +123,8 @@ export default function Products() {
   const [companyIntegrations, setCompanyIntegrations] = useState<CompanyIntegration[]>([]);
   const [companyFilter, setCompanyFilter] = useState("");
   const [platformFilter, setPlatformFilter] = useState("");
+  const [retryingKey, setRetryingKey] = useState<string | null>(null);
+  const [failedSyncKeys, setFailedSyncKeys] = useState<Set<string>>(() => new Set());
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
   const [listingChoiceOpen, setListingChoiceOpen] = useState(false);
   const [aiKeywordsOpen, setAiKeywordsOpen] = useState(false);
@@ -674,63 +675,148 @@ export default function Products() {
     return Array.from(byLower.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   }, [products]);
 
-  const columns: DataGridColumn<ProductListRow>[] = [
-    { key: "title", label: "Product", render: (_, row) => String(row.product.title || "—") },
-    {
-      key: "sku",
-      label: "SKU",
-      render: (_, row) =>
-        String((row.variant?.sku ?? row.product.sku ?? "").trim() || "—"),
+  const handleRetryShopify = useCallback(
+    async (product: Product) => {
+      const key = `${product.id}:shopify`;
+      setError("");
+      setSyncWarning(null);
+      setRetryingKey(key);
+      try {
+        const data = (await tenantApi.pushProductToShopify(product.id)) as Product & {
+          category_warning?: string;
+        };
+        setFailedSyncKeys((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
+        setSyncWarning(
+          data?.category_warning
+            ? `Shopify: ${data.category_warning}`
+            : "Pushed to Shopify."
+        );
+        await load();
+      } catch (err) {
+        setFailedSyncKeys((prev) => new Set(prev).add(key));
+        setError(err instanceof Error ? err.message : "Push to Shopify failed.");
+      } finally {
+        setRetryingKey(null);
+      }
     },
-    { key: "product_type", label: "Category", render: (_, row) => String(row.product.product_type || "—") },
-    {
-      key: "option",
-      label: "Variant (e.g. Size/Color)",
-      render: (_, row) => String(row.variant?.option1 ?? row.variant?.title ?? "—"),
+    [load]
+  );
+
+  const handleRetryDaraz = useCallback(
+    async (product: Product) => {
+      const key = `${product.id}:daraz`;
+      setError("");
+      setSyncWarning(null);
+      const imgs = Array.isArray(product.images) ? product.images : [];
+      const imgErr = validateDarazImageUrls(imgs);
+      if (imgErr) {
+        setError(imgErr);
+        setFailedSyncKeys((prev) => new Set(prev).add(key));
+        return;
+      }
+      setRetryingKey(key);
+      try {
+        const data = await tenantApi.pushProductToDaraz(product.id);
+        setFailedSyncKeys((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
+        setSyncWarning(data?.message || "Pushed to Daraz.");
+        await load();
+      } catch (err) {
+        setFailedSyncKeys((prev) => new Set(prev).add(key));
+        setError(err instanceof Error ? err.message : "Push to Daraz failed.");
+      } finally {
+        setRetryingKey(null);
+      }
     },
-    {
-      key: "price",
-      label: "Price",
-      align: "right",
-      render: (_, row) => {
-        const p = row.variant?.price ?? row.product.price;
-        const old = row.product.price_old;
-        if (p != null && old != null)
-          return (
-            <span>
-              {Number(p).toFixed(2)}{" "}
-              <span className="text-gray-400 line-through text-xs">{Number(old).toFixed(2)}</span>
-            </span>
-          );
-        if (p != null) return Number(p).toFixed(2);
-        return "—";
+    [load]
+  );
+
+  const columns: DataGridColumn<ProductListRow>[] = useMemo(() => {
+    const cols: DataGridColumn<ProductListRow>[] = [
+      {
+        key: "title",
+        label: "Product",
+        render: (_, row) => (
+          <ProductNameCell title={row.product.title} status={row.product.status} />
+        ),
       },
-    },
-    {
-      key: "quantity",
-      label: "Quantity",
-      align: "right",
-      render: (_, row) => {
-        const q = row.product.quantity;
-        return typeof q === "number" ? q : 0;
+      {
+        key: "sku",
+        label: "SKU",
+        render: (_, row) =>
+          String((row.variant?.sku ?? row.product.sku ?? "").trim() || "—"),
       },
-    },
-    {
-      key: "channel",
-      label: "Company",
-      render: (_, row) => <ProductChannelCell product={row.product} />,
-    },
-    {
-      key: "product_status",
-      label: "Product status",
-      render: (_, row) => productStatusLabel(row.product.status),
-    },
-    {
-      key: "sync_status",
-      label: "Status",
-      render: (_, row) => <ProductSyncStatus product={row.product} />,
-    },
-  ];
+      { key: "product_type", label: "Category", render: (_, row) => String(row.product.product_type || "—") },
+      {
+        key: "option",
+        label: "Variant (e.g. Size/Color)",
+        render: (_, row) => String(row.variant?.option1 ?? row.variant?.title ?? "—"),
+      },
+      {
+        key: "price",
+        label: "Price",
+        align: "right",
+        render: (_, row) => {
+          const p = row.variant?.price ?? row.product.price;
+          const old = row.product.price_old;
+          if (p != null && old != null)
+            return (
+              <span>
+                {Number(p).toFixed(2)}{" "}
+                <span className="text-gray-400 line-through text-xs">{Number(old).toFixed(2)}</span>
+              </span>
+            );
+          if (p != null) return Number(p).toFixed(2);
+          return "—";
+        },
+      },
+      {
+        key: "quantity",
+        label: "Quantity",
+        align: "right",
+        render: (_, row) => {
+          const q = row.product.quantity;
+          return typeof q === "number" ? q : 0;
+        },
+      },
+    ];
+
+    // Platform logos only when viewing All platforms
+    if (platformFilter === "") {
+      cols.push({
+        key: "platform",
+        label: "Platform",
+        render: (_, row) => (
+          <ProductPlatformLogos
+            product={row.product}
+            companyIntegrations={companyIntegrations}
+            onRetryShopify={handleRetryShopify}
+            onRetryDaraz={handleRetryDaraz}
+            retryingShopify={retryingKey === `${row.product.id}:shopify`}
+            retryingDaraz={retryingKey === `${row.product.id}:daraz`}
+            failedShopify={failedSyncKeys.has(`${row.product.id}:shopify`)}
+            failedDaraz={failedSyncKeys.has(`${row.product.id}:daraz`)}
+          />
+        ),
+      });
+    }
+
+    return cols;
+  }, [
+    platformFilter,
+    companyIntegrations,
+    handleRetryShopify,
+    handleRetryDaraz,
+    retryingKey,
+    failedSyncKeys,
+  ]);
 
   return (
     <div>
