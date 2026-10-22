@@ -6,6 +6,7 @@ import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
 import {
   ProductChannelCell,
   ProductSyncStatus,
+  getProductPushTargets,
   productStatusLabel,
 } from "../components/common/ChannelSyncStatus";
 import { tenantApi, type Product, type ProductVariant, type Company, type CompanyIntegration } from "../api/client";
@@ -14,7 +15,6 @@ import Label from "../components/form/Label";
 import TextArea from "../components/form/input/TextArea";
 import Radio from "../components/form/input/Radio";
 import Checkbox from "../components/form/input/Checkbox";
-import { useStoreTour } from "../context/StoreTourContext";
 import { PlusIcon, TrashBinIcon } from "../icons";
 
 type SortKey = "name_asc" | "name_desc" | "price_asc" | "price_desc" | "newest" | "oldest";
@@ -101,7 +101,6 @@ function emptyForm() {
 }
 
 export default function Products() {
-  const { startPageTour } = useStoreTour();
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,30 +167,6 @@ export default function Products() {
     if (formVisible && formContainerRef.current) {
       formContainerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [formVisible]);
-
-  useEffect(() => {
-    if (!formVisible) return;
-
-    const handleBackspace = (event: KeyboardEvent) => {
-      if (event.key !== "Backspace") return;
-      const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        (target.isContentEditable ||
-          target.closest("input, textarea, select, [contenteditable='true']"))
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-      setFormVisible(false);
-      setEditing(null);
-      setEditingVariantIndex(null);
-    };
-
-    document.addEventListener("keydown", handleBackspace);
-    return () => document.removeEventListener("keydown", handleBackspace);
   }, [formVisible]);
 
   const openCreateForm = (prefill?: ReturnType<typeof emptyForm>) => {
@@ -433,17 +408,21 @@ export default function Products() {
         };
         const data = await tenantApi.updateProduct(editing.id, updatePayload) as Product & {
           daraz_sync_warning?: string;
+          shopify_sync_warning?: string;
+          category_warning?: string;
+          shopify_synced?: boolean;
+          daraz_synced?: boolean;
         };
         if (stockQty != null) {
           await tenantApi.patchInventory(editing.id, { quantity: stockQty });
         }
-        if (data?.daraz_sync_warning) {
-          setSyncWarning(`Daraz sync: ${data.daraz_sync_warning}`);
-        } else if (data?.daraz_synced) {
-          setSyncWarning("Product synced to Daraz.");
-        } else {
-          setSyncWarning(null);
-        }
+        const parts: string[] = [];
+        if (data?.shopify_synced) parts.push("Shopify ✓");
+        if (data?.daraz_synced) parts.push("Daraz ✓");
+        if (data?.shopify_sync_warning) parts.push(`Shopify: ${data.shopify_sync_warning}`);
+        if (data?.daraz_sync_warning) parts.push(`Daraz: ${data.daraz_sync_warning}`);
+        if (data?.category_warning) parts.push(data.category_warning);
+        setSyncWarning(parts.length ? parts.join(" · ") : null);
         await load();
         closeForm();
         return;
@@ -481,7 +460,9 @@ export default function Products() {
         if (parts.length) {
           setSyncWarning(parts.join(" · "));
         } else if (created?.company_id) {
-          setSyncWarning("Product saved locally (no channel sync ran).");
+          setSyncWarning(
+            "Product saved locally (no channel sync ran). Check Company has Shopify/Daraz connected with credentials, or select the imported Daraz product → Push to Shopify."
+          );
         } else {
           setSyncWarning(null);
         }
@@ -586,6 +567,56 @@ export default function Products() {
     openEdit(row.product, row.variantIndex);
   };
 
+  const selectedProduct = hasSelection ? selectedRows[0].product : null;
+  const canPushShopify =
+    !!selectedProduct &&
+    !selectedProduct.shopify_synced &&
+    getProductPushTargets(selectedProduct, companyIntegrations).includes("shopify");
+  const canPushDaraz =
+    !!selectedProduct &&
+    !selectedProduct.daraz_synced &&
+    getProductPushTargets(selectedProduct, companyIntegrations).includes("daraz");
+
+  const handleToolbarPushShopify = async () => {
+    if (!selectedProduct || !canPushShopify) return;
+    setError("");
+    setSyncWarning(null);
+    try {
+      const data = (await tenantApi.pushProductToShopify(selectedProduct.id)) as Product & {
+        category_warning?: string;
+      };
+      setSyncWarning(
+        data?.category_warning
+          ? `Shopify: ${data.category_warning}`
+          : "Pushed to Shopify. This Daraz/local product is now linked for inventory sync."
+      );
+      setSelectedRowIds([]);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Push to Shopify failed.");
+    }
+  };
+
+  const handleToolbarPushDaraz = async () => {
+    if (!selectedProduct || !canPushDaraz) return;
+    setError("");
+    setSyncWarning(null);
+    const imgs = Array.isArray(selectedProduct.images) ? selectedProduct.images : [];
+    const imgErr = validateDarazImageUrls(imgs);
+    if (imgErr) {
+      setError(imgErr);
+      return;
+    }
+    try {
+      const data = await tenantApi.pushProductToDaraz(selectedProduct.id);
+      setSyncWarning(data?.message || "Pushed to Daraz.");
+      setSelectedRowIds([]);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Push to Daraz failed.");
+    }
+  };
+
   const handleToolbarDelete = async () => {
     if (!hasSelection) return;
     const uniqueProducts = new Map<string, Product>();
@@ -687,17 +718,7 @@ export default function Products() {
         title="Products | UniSell"
         description="All products from your connected stores and local catalog."
       />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <PageBreadcrumb pageTitle="Products" />
-        <button
-          aria-label="Take the Products tour"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-sm font-semibold text-gray-600 hover:border-violet-400 hover:text-violet-700 dark:border-gray-700 dark:text-gray-300"
-          type="button"
-          onClick={() => startPageTour("products")}
-        >
-          ?
-        </button>
-      </div>
+      <PageBreadcrumb pageTitle="Products" />
 
       <div className="space-y-4">
         {error && (
@@ -719,7 +740,6 @@ export default function Products() {
               syncWarning
             )}
             <button
-              data-tour="products-add"
               type="button"
               onClick={() => setSyncWarning(null)}
               className="ml-2 underline focus:outline-none"
@@ -731,8 +751,6 @@ export default function Products() {
 
         {formVisible ? (
           <div
-            data-tour="products-add"
-            data-tour-form="products-list"
             ref={formContainerRef}
             className="overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900/50"
           >
@@ -1229,6 +1247,29 @@ export default function Products() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => void handleToolbarPushShopify()}
+                  disabled={!canPushShopify}
+                  title={
+                    !hasSelection
+                      ? "Select an imported Daraz (or local) product first"
+                      : selectedProduct?.shopify_synced
+                        ? "Already on Shopify"
+                        : "Create this product on Shopify and link channels"
+                  }
+                  className="rounded-lg border border-emerald-200 bg-white px-4 py-2.5 text-sm font-medium text-emerald-700 shadow-sm hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-800 dark:bg-gray-800 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
+                >
+                  Push to Shopify
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleToolbarPushDaraz()}
+                  disabled={!canPushDaraz}
+                  className="rounded-lg border border-orange-200 bg-white px-4 py-2.5 text-sm font-medium text-orange-700 shadow-sm hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-orange-800 dark:bg-gray-800 dark:text-orange-400 dark:hover:bg-orange-900/20"
+                >
+                  Push to Daraz
+                </button>
+                <button
+                  type="button"
                   onClick={() => void handleToolbarDelete()}
                   disabled={!hasSelection}
                   className="rounded-lg border border-rose-200 bg-white px-4 py-2.5 text-sm font-medium text-rose-600 shadow-sm hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-rose-800 dark:bg-gray-800 dark:text-rose-400 dark:hover:bg-rose-900/20"
@@ -1292,7 +1333,7 @@ export default function Products() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-200/90 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900/50" data-tour="products-list">
+            <div className="rounded-2xl border border-gray-200/90 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900/50">
               <DataGrid
                 columns={columns}
                 data={filteredAndSorted}
