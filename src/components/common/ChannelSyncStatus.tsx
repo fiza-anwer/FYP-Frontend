@@ -242,7 +242,7 @@ function PlatformLogoChip({
             onRetry();
           }}
           disabled={retrying}
-          className="text-[10px] font-medium text-sky-600 hover:underline disabled:opacity-50 dark:text-sky-400"
+          className="text-xs font-semibold text-sky-600 hover:underline disabled:opacity-50 dark:text-sky-400"
         >
           {retrying ? "…" : "Retry"}
         </button>
