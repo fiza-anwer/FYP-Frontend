@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
-import { useLocation, useNavigate } from "react-router";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
+import StickyToolbar from "../components/common/StickyToolbar";
 import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
 import { tenantApi, API_BASE, type CompanyIntegration, type Company, type IntegrationCredentialSchema } from "../api/client";
 import Label from "../components/form/Label";
@@ -10,56 +10,17 @@ import Input from "../components/form/input/InputField";
 import Checkbox from "../components/form/input/Checkbox";
 import SetupFormShell, { SetupFormAside, SetupFormSection } from "../components/setup/SetupFormShell";
 
-function getStoreWebsiteUrl(integration: CompanyIntegration): string {
-  const credentials = integration.credentials || {};
-  const configuredUrl =
-    credentials.storefront_url ||
-    credentials.store_url ||
-    credentials.website_url ||
-    credentials.shop_url;
-  const value =
-    typeof configuredUrl === "string"
-      ? configuredUrl
-      : integration.integration_slug === "shopify" && typeof credentials.shop_domain === "string"
-        ? credentials.shop_domain
-        : "";
-  if (!value.trim()) return "";
-
-  try {
-    const withProtocol = /^https?:\/\//i.test(value.trim()) ? value.trim() : `https://${value.trim()}`;
-    const url = new URL(withProtocol);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
-  } catch {
-    return "";
-  }
-}
-
-function normalizeStoreWebsiteUrl(value: string): string | null {
-  if (!value.trim()) return "";
-  try {
-    const candidate = /^https?:\/\//i.test(value.trim()) ? value.trim() : `https://${value.trim()}`;
-    const url = new URL(candidate);
-    if ((url.protocol !== "http:" && url.protocol !== "https:") || !url.hostname) return null;
-    return url.toString();
-  } catch {
-    return null;
-  }
-}
-
 export default function CompanyIntegrations() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const formVisible = location.pathname.endsWith("/setup");
   const [companies, setCompanies] = useState<Company[]>([]);
   const [integrations, setIntegrations] = useState<Array<{ id: string; name: string; slug: string; credentials_schema: IntegrationCredentialSchema[] }>>([]);
   const [companyIntegrations, setCompanyIntegrations] = useState<CompanyIntegration[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState<CompanyIntegration | null>(null);
   const [formCompanyId, setFormCompanyId] = useState("");
   const [formIntegrationId, setFormIntegrationId] = useState("");
   const [formCredentials, setFormCredentials] = useState<Record<string, string>>({});
-  const [formStorefrontUrl, setFormStorefrontUrl] = useState("");
   const [formActive, setFormActive] = useState(true);
   const [formFeatures, setFormFeatures] = useState<{ orders: boolean; products: boolean; inventory: boolean }>({
     orders: true,
@@ -100,30 +61,24 @@ export default function CompanyIntegrations() {
   const selectedSchema =
     isDarazSelected ? [] : selectedIntegration?.credentials_schema || [];
 
-  const openCreate = (companyId = "", integrationId = "") => {
+  const openCreate = () => {
     setSuccessMessage("");
     setEditing(null);
-    setFormCompanyId(companyId);
-    setFormIntegrationId(integrationId);
+    setFormCompanyId("");
+    setFormIntegrationId("");
     setFormCredentials({});
-    setFormStorefrontUrl("");
     setDarazOAuthConnected(false);
     setDarazConnecting(false);
     setFormActive(true);
     setFormFeatures({ orders: true, products: true, inventory: true });
-    navigate("/company-integrations/setup", { state: { companyId, integrationId } });
+    setFormVisible(true);
   };
 
-  const populateEditForm = (ci: CompanyIntegration) => {
-    const credentials: Record<string, string> = {};
-    for (const [key, value] of Object.entries(ci.credentials || {})) {
-      if (typeof value === "string") credentials[key] = value;
-    }
+  const openEdit = (ci: CompanyIntegration) => {
     setEditing(ci);
     setFormCompanyId(ci.company_id || "");
     setFormIntegrationId(ci.integration_id);
-    setFormCredentials(credentials);
-    setFormStorefrontUrl(getStoreWebsiteUrl(ci));
+    setFormCredentials(ci.credentials || {});
     const isDaraz = ci.integration_slug === "daraz";
     setDarazOAuthConnected(
       isDaraz &&
@@ -141,43 +96,19 @@ export default function CompanyIntegrations() {
       products: features.includes("products"),
       inventory: features.includes("inventory"),
     });
+    setFormVisible(true);
   };
-
-  const openEdit = (ci: CompanyIntegration) => {
-    populateEditForm(ci);
-    navigate("/company-integrations/setup", { state: { integration: ci } });
-  };
-
-  useEffect(() => {
-    if (!formVisible) return;
-    const routeState = location.state as
-      | { companyId?: string; integrationId?: string; integration?: CompanyIntegration }
-      | null;
-    if (routeState?.integration) {
-      populateEditForm(routeState.integration);
-    } else if (routeState) {
-      setEditing(null);
-      setFormCompanyId(routeState.companyId || "");
-      setFormIntegrationId(routeState.integrationId || "");
-      setFormCredentials({});
-      setFormStorefrontUrl("");
-      setDarazOAuthConnected(false);
-      setDarazConnecting(false);
-      setFormActive(true);
-      setFormFeatures({ orders: true, products: true, inventory: true });
-    }
-  }, [formVisible, location.state]);
 
   const closeForm = () => {
+    setFormVisible(false);
     setEditing(null);
-    navigate("/company-integrations");
   };
 
   useEffect(() => {
     if (formVisible && formContainerRef.current) {
       formContainerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [formVisible, location.pathname]);
+  }, [formVisible]);
 
   useEffect(() => {
     if (!formVisible) return;
@@ -195,9 +126,6 @@ export default function CompanyIntegrations() {
           data.credentials && typeof data.credentials === "object"
             ? (data.credentials as Record<string, string>)
             : null;
-        if (typeof fromPopup?.storefront_url === "string") {
-          setFormStorefrontUrl(fromPopup.storefront_url);
-        }
         setFormCredentials((prev) => ({
           ...prev,
           oauth_connected: "true",
@@ -209,9 +137,6 @@ export default function CompanyIntegrations() {
                 refresh_token: String(fromPopup.refresh_token || ""),
                 expires_in: String(fromPopup.expires_in || ""),
                 refresh_expires_in: String(fromPopup.refresh_expires_in || ""),
-                storefront_url: String(fromPopup.storefront_url || ""),
-                shop_name: String(fromPopup.shop_name || ""),
-                shop_short_code: String(fromPopup.shop_short_code || ""),
               }
             : data.code
               ? { authorization_code: String(data.code) }
@@ -248,12 +173,6 @@ export default function CompanyIntegrations() {
     e.preventDefault();
     setError("");
     setSaving(true);
-    const storefrontUrl = normalizeStoreWebsiteUrl(formStorefrontUrl);
-    if (storefrontUrl === null) {
-      setError("Enter a valid public website URL, such as https://www.daraz.pk/shop/your-store.");
-      setSaving(false);
-      return;
-    }
     const selectedFeatures: string[] = [];
     if (formFeatures.orders) selectedFeatures.push("orders");
     if (formFeatures.products) selectedFeatures.push("products");
@@ -267,7 +186,7 @@ export default function CompanyIntegrations() {
       if (editing) {
         await tenantApi.updateCompanyIntegration(editing.id, {
           company_id: formCompanyId || undefined,
-          credentials: { ...formCredentials, storefront_url: storefrontUrl },
+          credentials: formCredentials,
           status: formActive ? 1 : 0,
           features: selectedFeatures,
         });
@@ -290,7 +209,7 @@ export default function CompanyIntegrations() {
         await tenantApi.createCompanyIntegration({
           company_id: formCompanyId,
           integration_id: formIntegrationId,
-          credentials: { ...formCredentials, storefront_url: storefrontUrl },
+          credentials: formCredentials,
           status: formActive ? 1 : 0,
           features: selectedFeatures,
         });
@@ -333,7 +252,7 @@ export default function CompanyIntegrations() {
     },
     {
       key: "status",
-      label: "Connection",
+      label: "Status",
       render: (_, row) => (
         <span
           className={
@@ -374,13 +293,8 @@ export default function CompanyIntegrations() {
 
   return (
     <div>
-      <PageMeta
-        title={`${formVisible ? (editing ? "Edit" : "Add") : "Company"} Integrations | UniSell`}
-        description={formVisible ? "Configure a company integration." : "Manage your company integrations."}
-      />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <PageBreadcrumb pageTitle={formVisible ? (editing ? "Edit integration" : "Add integration") : "Company Integrations"} />
-      </div>
+      <PageMeta title="Company Integrations | UniSell" description="Manage your company integrations." />
+      <PageBreadcrumb pageTitle="Company Integrations" />
       <div className="space-y-4">
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
@@ -501,7 +415,7 @@ export default function CompanyIntegrations() {
                         {darazConnecting ? "Opening Daraz…" : "Connect Daraz account"}
                       </button>
                     )}
-                    {darazOAuthConnected && (
+                    {darazOAuthConnected && !editing && (
                       <button
                         type="button"
                         onClick={() => {
@@ -520,26 +434,6 @@ export default function CompanyIntegrations() {
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     After Connect succeeds, click <strong>Save</strong> right away so the new token is stored.
                   </p>
-                </SetupFormSection>
-              )}
-
-              {!isDarazSelected && (
-                <SetupFormSection title="Public website" description="Optional public storefront link. It is separate from the integration connection status.">
-                  <div>
-                    <Label className="text-sm">Store website URL</Label>
-                    <Input
-                      type="url"
-                      placeholder="https://your-store.com"
-                      value={formStorefrontUrl}
-                      onChange={(e) => setFormStorefrontUrl(e.target.value)}
-                      className="mt-1.5"
-                    />
-                    {selectedIntegration?.slug === "shopify" && !formStorefrontUrl && typeof formCredentials.shop_domain === "string" && (
-                      <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                        If left blank, the Shopify shop domain will be used as the website URL.
-                      </p>
-                    )}
-                  </div>
                 </SetupFormSection>
               )}
 
@@ -592,25 +486,22 @@ export default function CompanyIntegrations() {
           </div>
         ) : (
           <>
-            <div className="flex justify-end">
+            <StickyToolbar className="flex justify-end">
               <button
-
                 type="button"
-                onClick={() => openCreate()}
+                onClick={openCreate}
                 className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
               >
                 Add integration
               </button>
-            </div>
-            <div>
-              <DataGrid
-                columns={integrationColumns}
-                data={companyIntegrations}
-                keyExtractor={(ci) => ci.id}
-                emptyMessage="No integrations yet. Click Add integration to connect a store."
-                loading={loading}
-              />
-            </div>
+            </StickyToolbar>
+            <DataGrid
+              columns={integrationColumns}
+              data={companyIntegrations}
+              keyExtractor={(ci) => ci.id}
+              emptyMessage="No integrations yet. Click Add integration to connect a store."
+              loading={loading}
+            />
           </>
         )}
       </div>
