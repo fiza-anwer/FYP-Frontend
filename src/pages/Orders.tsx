@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
+import StickyToolbar from "../components/common/StickyToolbar";
 import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
 import { tenantApi, type Order, type Company, type Consignment, type CarrierIntegration, type CarrierIntegrationService } from "../api/client";
 import { OrderChannelCell, OrderSyncStatus } from "../components/common/ChannelSyncStatus";
@@ -294,9 +295,7 @@ export default function Orders() {
   return (
     <>
       <PageMeta title="Orders | UniSell" description="Imported orders from your integrations." />
-      <div>
-        <PageBreadcrumb pageTitle="Orders" />
-      </div>
+      <PageBreadcrumb pageTitle="Orders" />
       <div className="space-y-4">
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
@@ -313,7 +312,7 @@ export default function Orders() {
             {consignmentSuccessCount} consignment(s) created. Use Print label to open each shipping label.
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-4 py-2">
+        <StickyToolbar className="flex flex-wrap items-center gap-4 py-2">
           <select
             value={companyFilter}
             onChange={(e) => setCompanyFilter(e.target.value)}
@@ -356,7 +355,7 @@ export default function Orders() {
               Create consignment {selectedWithAddress.length > 0 ? `(${selectedWithAddress.length})` : ""}
             </button>
           </div>
-        </div>
+        </StickyToolbar>
         {ordersWithoutCompany.length > 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50/80 dark:bg-amber-900/20 dark:border-amber-800 p-3">
             <p className="text-sm text-amber-800 dark:text-amber-300 mb-3">
