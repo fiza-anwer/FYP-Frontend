@@ -224,17 +224,6 @@ export type Order = {
   };
 };
 
-export type SalesReportRow = {
-  company_id: string | null;
-  company_name: string;
-  source: string;
-  store_name: string;
-  period: string;
-  currency: string | null;
-  order_count: number;
-  sales: number;
-};
-
 export type Consignment = {
   id: string;
   order_id: string;
@@ -357,8 +346,6 @@ export type StockAlertSummary = {
 
 export type LoginResponse = {
   token?: string;
-  challenge_token?: string;
-  requires_two_factor?: boolean;
   user?: {
     email: string;
     role: string;
@@ -386,17 +373,6 @@ export const authApi = {
       if (!res.ok) throw new Error((data as { error?: string }).error || "Login failed");
       return data as LoginResponse;
     }),
-  verifyTwoFactor: (body: { challenge_token: string; code: string }) =>
-    fetch(`${API_BASE}/api/auth/two-factor/login`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }).then(async (res) => {
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as { error?: string }).error || "Verification failed");
-      return data as LoginResponse;
-    }),
   signup: (body: { email: string; password: string; tenant_name: string }) =>
     fetch(`${API_BASE}/api/auth/signup`, {
       method: "POST",
@@ -418,10 +394,6 @@ export const authApi = {
 // Tenant API
 export const tenantApi = {
   getDashboardAnalytics: () => api<DashboardAnalytics>("/api/tenant/dashboard/analytics"),
-  getSalesReport: (from: string, to: string, interval: "day" | "month") => {
-    const search = new URLSearchParams({ from, to, interval });
-    return api<{ from: string; to: string; rows: SalesReportRow[] }>(`/api/tenant/reports/sales?${search.toString()}`);
-  },
   getCompanies: () =>
     api<{ companies: Company[] }>("/api/tenant/companies"),
   createCompany: (body: { name: string; address1?: string; city?: string; postal_code?: string; country_code?: string }) =>

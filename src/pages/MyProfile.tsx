@@ -37,10 +37,6 @@ export default function MyProfile() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [pendingEmail, setPendingEmail] = useState("");
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(user?.two_factor_enabled === true);
-  const [twoFactorSetup, setTwoFactorSetup] = useState<{ secret: string; otpauth_url: string } | null>(null);
-  const [twoFactorCode, setTwoFactorCode] = useState("");
-  const [disablePassword, setDisablePassword] = useState("");
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [securityBusy, setSecurityBusy] = useState(false);
 
@@ -81,7 +77,6 @@ export default function MyProfile() {
           avatar: profile.avatar || "",
         });
         setPendingEmail(typeof profile.pending_email === "string" ? profile.pending_email : "");
-        setTwoFactorEnabled(profile.two_factor_enabled === true);
         const currentSessions = await api<ActiveSession[]>("/api/auth/sessions");
         if (active) setSessions(currentSessions);
       })
@@ -174,58 +169,6 @@ export default function MyProfile() {
         setNotice(result.message);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not send verification email");
-      } finally {
-        setSecurityBusy(false);
-      }
-    }
-
-  async function startTwoFactorSetup() {
-      setSecurityBusy(true);
-      setError("");
-      try {
-        const setup = await api<{ secret: string; otpauth_url: string }>("/api/auth/two-factor/setup", { method: "POST" });
-        setTwoFactorSetup(setup);
-        setTwoFactorCode("");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not start two-factor setup");
-      } finally {
-        setSecurityBusy(false);
-      }
-    }
-
-  async function enableTwoFactor() {
-      setSecurityBusy(true);
-      setError("");
-      try {
-        await api<{ message: string }>("/api/auth/two-factor/enable", {
-          method: "POST",
-          body: JSON.stringify({ code: twoFactorCode }),
-        });
-        setTwoFactorEnabled(true);
-        setTwoFactorSetup(null);
-        setTwoFactorCode("");
-        setNotice("Authenticator two-factor authentication is enabled.");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not enable two-factor authentication");
-      } finally {
-        setSecurityBusy(false);
-      }
-    }
-
-  async function disableTwoFactor() {
-      setSecurityBusy(true);
-      setError("");
-      try {
-        await api<{ message: string }>("/api/auth/two-factor/disable", {
-          method: "POST",
-          body: JSON.stringify({ current_password: disablePassword, code: twoFactorCode }),
-        });
-        setTwoFactorEnabled(false);
-        setTwoFactorCode("");
-        setDisablePassword("");
-        setNotice("Two-factor authentication is disabled.");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not disable two-factor authentication");
       } finally {
         setSecurityBusy(false);
       }
@@ -428,96 +371,6 @@ export default function MyProfile() {
       </section>
       {!loading && (
         <>
-          <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/50">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Two-factor authentication</h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Verify with your authenticator on a new browser, then again after six months on that browser.
-                </p>
-              </div>
-              <span className={`rounded-full px-3 py-1 text-xs font-medium ${twoFactorEnabled ? "bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}`}>
-                {twoFactorEnabled ? "Enabled" : "Disabled"}
-              </span>
-            </div>
-            {!twoFactorEnabled && !twoFactorSetup && (
-              <button
-                className="mt-4 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-60"
-                type="button"
-                onClick={startTwoFactorSetup}
-                disabled={securityBusy}
-              >
-                Set up authenticator
-              </button>
-            )}
-            {twoFactorSetup && (
-              <div className="mt-4 space-y-3">
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Add UniSell in your authenticator app using this setup key, then enter the 6-digit code shown by the app.
-                </p>
-                <code className="block break-all rounded-lg bg-gray-100 p-3 font-mono text-sm text-gray-900 dark:bg-gray-800 dark:text-gray-100">
-                  {twoFactorSetup.secret}
-                </code>
-                <a className="text-sm font-medium text-violet-600 hover:underline dark:text-violet-400" href={twoFactorSetup.otpauth_url}>
-                  Open authenticator app
-                </a>
-                <div className="flex flex-wrap gap-3">
-                  <input
-                    className="w-40 rounded-lg border border-gray-300 px-3 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    aria-label="Authenticator verification code"
-                    placeholder="6-digit code"
-                    value={twoFactorCode}
-                    onChange={(event) => setTwoFactorCode(event.target.value.replace(/\D/g, ""))}
-                  />
-                  <button
-                    className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-60"
-                    type="button"
-                    onClick={enableTwoFactor}
-                    disabled={securityBusy || twoFactorCode.length !== 6}
-                  >
-                    Verify and enable
-                  </button>
-                  <button className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700 dark:text-gray-200" type="button" onClick={() => setTwoFactorSetup(null)}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-            {twoFactorEnabled && (
-              <div className="mt-4 flex flex-wrap gap-3">
-                <input
-                  className="w-48 rounded-lg border border-gray-300 px-3 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="Current password"
-                  value={disablePassword}
-                  onChange={(event) => setDisablePassword(event.target.value)}
-                />
-                <input
-                  className="w-40 rounded-lg border border-gray-300 px-3 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  aria-label="Authenticator verification code"
-                  placeholder="6-digit code"
-                  value={twoFactorCode}
-                  onChange={(event) => setTwoFactorCode(event.target.value.replace(/\D/g, ""))}
-                />
-                <button
-                  className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60 dark:border-red-900"
-                  type="button"
-                  onClick={disableTwoFactor}
-                  disabled={securityBusy || !disablePassword || twoFactorCode.length !== 6}
-                >
-                  Disable 2FA
-                </button>
-              </div>
-            )}
-          </section>
-
           <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/50">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>

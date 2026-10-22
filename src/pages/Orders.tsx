@@ -294,7 +294,7 @@ export default function Orders() {
   return (
     <>
       <PageMeta title="Orders | UniSell" description="Imported orders from your integrations." />
-      <div data-tour="orders-overview">
+      <div>
         <PageBreadcrumb pageTitle="Orders" />
       </div>
       <div className="space-y-4">

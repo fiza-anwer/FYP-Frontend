@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { useAuth } from "../../context/AuthContext";
-import { useStoreTour } from "../../context/StoreTourContext";
 import { api } from "../../api/client";
 
 function formatTenantName(name: string | undefined): string {
@@ -20,7 +19,6 @@ export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const { user, isSuperadmin, logout } = useAuth();
-  const { startTour } = useStoreTour();
   const displayName = user?.name || (user?.tenant_name
     ? formatTenantName(user.tenant_name)
     : isSuperadmin
@@ -48,7 +46,6 @@ export default function UserDropdown() {
   return (
     <div className="relative">
       <button
-        data-tour="profile-menu"
         onClick={toggleDropdown}
         className="flex items-center gap-2 rounded-xl px-3 py-2 text-violet-600 hover:bg-violet-50 hover:text-violet-700 dark:text-violet-400 dark:hover:bg-violet-500/15 dropdown-toggle"
       >
@@ -109,20 +106,6 @@ export default function UserDropdown() {
           </svg>
           My profile
         </button>
-
-        {!isSuperadmin && (
-          <button
-            type="button"
-            onClick={() => {
-              closeDropdown();
-              startTour();
-            }}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-theme-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-gray-400 text-xs" aria-hidden="true">?</span>
-            Take a tour
-          </button>
-        )}
 
         <button
           type="button"

@@ -66,13 +66,6 @@ const tenantNavItems: NavItem[] = [
       { name: "Carrier Services", path: "/carrier-integration-services", pro: false },
     ],
   },
-  {
-    icon: <TableIcon />,
-    name: "Business Reports",
-    path: "/reports",
-    iconColor: "text-emerald-500 group-hover:text-emerald-600 dark:text-emerald-400",
-    iconColorActive: "text-emerald-600 dark:text-emerald-400",
-  },
 ];
 
 const superadminNavItems: NavItem[] = [
@@ -216,7 +209,6 @@ const AppSidebar: React.FC = () => {
             nav.path && (
               <Link
                 to={nav.path}
-                data-tour={nav.name === "Dashboard" ? "dashboard-nav-item" : undefined}
                 className={`menu-item group ${
                   isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
                 }`}
@@ -300,7 +292,6 @@ const AppSidebar: React.FC = () => {
         aria-expanded={isMobileOpen}
         aria-label={isMobileOpen ? "Close sidebar" : "Open sidebar"}
         className="fixed left-3 top-[76px] z-[60] flex h-10 w-10 items-center justify-center rounded-xl border border-teal-200/60 bg-white text-teal-600 shadow-sm hover:bg-teal-50 dark:border-teal-800/50 dark:bg-gray-900 dark:text-teal-400 dark:hover:bg-teal-500/15 lg:hidden"
-        data-tour="mobile-sidebar-toggle"
         onClick={toggleMobileSidebar}
         type="button"
       >
@@ -383,7 +374,7 @@ const AppSidebar: React.FC = () => {
         </button>
       </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
-        <nav className="mb-6" data-tour="sidebar-navigation">
+        <nav className="mb-6">
           <div className="flex flex-col gap-4">
             <div>
               <h2

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
-import { Link, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
 import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
@@ -9,7 +9,6 @@ import Label from "../components/form/Label";
 import Input from "../components/form/input/InputField";
 import Checkbox from "../components/form/input/Checkbox";
 import SetupFormShell, { SetupFormAside, SetupFormSection } from "../components/setup/SetupFormShell";
-import { useStoreTour } from "../context/StoreTourContext";
 
 function getStoreWebsiteUrl(integration: CompanyIntegration): string {
   const credentials = integration.credentials || {};
@@ -47,10 +46,7 @@ function normalizeStoreWebsiteUrl(value: string): string | null {
   }
 }
 
-type SetupState = "not-connected" | "in-progress" | "connected" | "needs-attention";
-
 export default function CompanyIntegrations() {
-  const { startPageTour } = useStoreTour();
   const location = useLocation();
   const navigate = useNavigate();
   const formVisible = location.pathname.endsWith("/setup");
@@ -72,7 +68,6 @@ export default function CompanyIntegrations() {
   });
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-  const [setupChecklistOpen, setSetupChecklistOpen] = useState(false);
   const [darazConnecting, setDarazConnecting] = useState(false);
   const [darazOAuthConnected, setDarazOAuthConnected] = useState(false);
   const formContainerRef = useRef<HTMLDivElement>(null);
@@ -117,55 +112,6 @@ export default function CompanyIntegrations() {
     setFormActive(true);
     setFormFeatures({ orders: true, products: true, inventory: true });
     navigate("/company-integrations/setup", { state: { companyId, integrationId } });
-  };
-
-  const hasConfiguredCredentials = (
-    integration: (typeof integrations)[number],
-    companyIntegration: CompanyIntegration
-  ) => {
-    const credentials = companyIntegration.credentials || {};
-    if (integration.slug === "daraz") {
-      return typeof credentials.access_token === "string" && credentials.access_token.length > 0;
-    }
-
-    const requiredFields = integration.credentials_schema.filter((field) => field.required);
-    if (requiredFields.length > 0) {
-      return requiredFields.every((field) => {
-        const value = credentials[field.key];
-        return typeof value === "string" && value.trim().length > 0;
-      });
-    }
-
-    return Object.values(credentials).some(
-      (value) => typeof value === "string" && value.trim().length > 0
-    );
-  };
-
-  const getSetupState = (
-    company: Company,
-    integration: (typeof integrations)[number]
-  ): { state: SetupState; connection?: CompanyIntegration; detail: string } => {
-    const matches = companyIntegrations.filter(
-      (item) => item.company_id === company.id && item.integration_id === integration.id
-    );
-    const configured = matches.find(
-      (item) => item.status === 1 && hasConfiguredCredentials(integration, item)
-    );
-
-    if (!editing && formVisible && formCompanyId === company.id && formIntegrationId === integration.id) {
-      return { state: "in-progress", connection: configured || matches[0], detail: "Finish the setup form and save to connect this store." };
-    }
-    if (configured) {
-      return { state: "connected", connection: configured, detail: "Setup is saved and enabled in UniSell." };
-    }
-    if (matches.length > 0) {
-      return {
-        state: "needs-attention",
-        connection: matches[0],
-        detail: matches[0].status !== 1 ? "This integration is inactive, so UniSell will not sync it." : "Some required connection details are missing.",
-      };
-    }
-    return { state: "not-connected", detail: "Connect a store to start syncing its data." };
   };
 
   const populateEditForm = (ci: CompanyIntegration) => {
@@ -374,20 +320,6 @@ export default function CompanyIntegrations() {
     }
   };
 
-  const setupStateStyles: Record<SetupState, string> = {
-    "not-connected": "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
-    "in-progress": "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300",
-    connected: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    "needs-attention": "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-  };
-
-  const setupStateLabels: Record<SetupState, string> = {
-    "not-connected": "Not connected",
-    "in-progress": "Setup in progress",
-    connected: "Connected",
-    "needs-attention": "Needs attention",
-  };
-
   const integrationColumns: DataGridColumn<CompanyIntegration>[] = [
     {
       key: "company_name",
@@ -414,32 +346,6 @@ export default function CompanyIntegrations() {
           {row.status === 1 ? "Active" : "Inactive"}
         </span>
       ),
-    },
-    {
-      key: "credentials",
-      label: "Website",
-      render: (_, row) => {
-        const url = getStoreWebsiteUrl(row);
-        return (
-          <div className="flex max-w-sm flex-col items-start gap-1">
-            {url ? (
-              <>
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="max-w-full truncate text-sm text-indigo-600 hover:underline dark:text-indigo-400"
-                  title={url}
-                >
-                  {url}
-                </a>
-              </>
-            ) : (
-              <span className="text-xs text-gray-500 dark:text-gray-400">No public URL</span>
-            )}
-          </div>
-        );
-      },
     },
     {
       key: "id",
@@ -474,27 +380,6 @@ export default function CompanyIntegrations() {
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <PageBreadcrumb pageTitle={formVisible ? (editing ? "Edit integration" : "Add integration") : "Company Integrations"} />
-        {!formVisible && (
-          <div className="flex items-center gap-2">
-            <button
-              aria-expanded={setupChecklistOpen}
-              aria-controls="store-connection-checklist"
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-              type="button"
-              onClick={() => setSetupChecklistOpen((open) => !open)}
-            >
-              {setupChecklistOpen ? "Hide setup checklist" : "Setup checklist"}
-            </button>
-            <button
-              aria-label="Take the Integrations tour"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-sm font-semibold text-gray-600 hover:border-violet-400 hover:text-violet-700 dark:border-gray-700 dark:text-gray-300"
-              type="button"
-              onClick={() => startPageTour("integrations")}
-            >
-              ?
-            </button>
-          </div>
-        )}
       </div>
       <div className="space-y-4">
         {error && (
@@ -508,91 +393,8 @@ export default function CompanyIntegrations() {
           </div>
         )}
 
-        {!formVisible && setupChecklistOpen && <section id="store-connection-checklist" className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-white/[0.03]">
-          <div className="mb-4">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Store connection checklist</h2>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Track each company’s setup and see what to do next. Connected means setup is saved and enabled in UniSell.
-            </p>
-          </div>
-          {loading ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">Loading company setup…</p>
-          ) : companies.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Create a company first, then return here to connect its stores.
-            </p>
-          ) : integrations.length === 0 ? (
-            <p className="text-sm text-amber-700 dark:text-amber-300">
-              No store channels are available yet. Contact your UniSell administrator to configure integrations.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {companies.map((company) => (
-                <div key={company.id} className="rounded-lg border border-gray-200 dark:border-gray-700">
-                  <h3 className="border-b border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-white">
-                    {company.name}
-                  </h3>
-                  <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {integrations.map((integration) => {
-                      const setup = getSetupState(company, integration);
-                      const busy = formVisible && setup.state === "in-progress";
-                      return (
-                        <div key={integration.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                          <div className="min-w-48 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{integration.name}</span>
-                              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${setupStateStyles[setup.state]}`}>
-                                {setupStateLabels[setup.state]}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{setup.detail}</p>
-                          </div>
-                          {busy ? (
-                            <button
-                              type="button"
-                              onClick={() => formContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                              className="text-sm font-medium text-sky-700 hover:text-sky-800 dark:text-sky-300"
-                            >
-                              Continue setup
-                            </button>
-                          ) : setup.connection ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (setup.connection) openEdit(setup.connection);
-                              }}
-                              className="text-sm font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
-                            >
-                              {setup.state === "connected" ? "Manage" : "Fix setup"}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => openCreate(company.id, integration.id)}
-                              className="text-sm font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
-                            >
-                              Start setup
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <p className="mt-4 border-t border-gray-100 pt-3 text-sm text-gray-500 dark:border-gray-800 dark:text-gray-400">
-            Having trouble connecting a store?{" "}
-            <Link to="/help-support" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
-              Contact UniSell support
-            </Link>
-            . Share the error message, but never send passwords or API tokens.
-          </p>
-        </section>}
-
         {formVisible ? (
-          <div ref={formContainerRef} data-tour="integrations-add" data-tour-form="integrations-list">
+          <div ref={formContainerRef}>
             <SetupFormShell
               title={editing ? "Edit integration" : "Add integration"}
               subtitle="Connect a marketplace or sales channel to sync orders, products, and inventory."
@@ -792,7 +594,7 @@ export default function CompanyIntegrations() {
           <>
             <div className="flex justify-end">
               <button
-                data-tour="integrations-add"
+
                 type="button"
                 onClick={() => openCreate()}
                 className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
@@ -800,7 +602,7 @@ export default function CompanyIntegrations() {
                 Add integration
               </button>
             </div>
-            <div data-tour="integrations-list">
+            <div>
               <DataGrid
                 columns={integrationColumns}
                 data={companyIntegrations}

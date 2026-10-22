@@ -6,7 +6,6 @@ import DashboardPanel from "../../components/dashboard/DashboardPanel";
 import DeferredChart from "../../components/dashboard/DeferredChart";
 import Badge from "../../components/ui/badge/Badge";
 import { useAuth } from "../../context/AuthContext";
-import { onboardingStorageKey } from "../../context/StoreTourContext";
 
 const DashboardOrdersLineChart = lazy(() => import("../../components/dashboard/DashboardOrdersLineChart"));
 const DashboardRevenueBarChart = lazy(() => import("../../components/dashboard/DashboardRevenueBarChart"));
@@ -122,6 +121,7 @@ function FeaturedHero({
 export default function TenantDashboard({ data }: { data: DashboardAnalytics }) {
   const [showAllStaleProducts, setShowAllStaleProducts] = useState(false);
   const { user } = useAuth();
+  const checklistStorageKey = `unisell:onboarding:${(user?.tenant_name || user?.email || user?.username || "account").toLowerCase()}:checklist-dismissed`;
   const { summary } = data;
   const displayName = formatTenantName(user?.tenant_name);
   const today = new Date().toLocaleDateString(undefined, {
@@ -138,7 +138,7 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
   const [integrationError, setIntegrationError] = useState("");
   const [orderProgressError, setOrderProgressError] = useState("");
   const [checklistDismissed, setChecklistDismissed] = useState(
-    () => localStorage.getItem(`${onboardingStorageKey(user)}:checklist-dismissed`) === "true"
+    () => localStorage.getItem(checklistStorageKey) === "true"
   );
   const loadIntegrationProgress = useCallback(async () => {
     setIntegrationError("");
@@ -181,7 +181,7 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
   return (
     <div className="space-y-6 pb-6">
       {/* Welcome + KPI — Skydash / Star Admin style */}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12" data-tour="dashboard-overview">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         <div className="relative overflow-hidden rounded-xl border border-gray-100 bg-white p-6 shadow-[0_2px_20px_rgba(0,0,0,0.06)] dark:border-gray-800 dark:bg-gray-900 xl:col-span-5">
           <div className="pointer-events-none absolute -right-10 top-0 h-40 w-40 rounded-full bg-violet-100/80 blur-2xl dark:bg-violet-900/30" />
           <div className="pointer-events-none absolute bottom-0 right-4 hidden h-32 w-32 opacity-90 sm:block">
@@ -270,7 +270,7 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
                 className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
                 type="button"
                 onClick={() => {
-                  localStorage.setItem(`${onboardingStorageKey(user)}:checklist-dismissed`, "true");
+                  localStorage.setItem(checklistStorageKey, "true");
                   setChecklistDismissed(true);
                 }}
               >

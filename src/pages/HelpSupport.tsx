@@ -40,14 +40,14 @@ const faqs = [
   { category: "Integrations", question: "How do I connect an integration?", answer: "Open Company Integrations, choose the company and integration, enter the credentials requested by the form, and save. Keep API credentials private." },
   { category: "Products", question: "Why are products or stock not syncing?", answer: "Check that the integration is connected and its credentials are current. Review product status and SKU, then retry the sync. Include the affected product and time in your support request." },
   { category: "Account & security", question: "How do I reset or change my password?", answer: "Open My profile and enter your current password and a new password. If you cannot sign in, submit an Account support request." },
-  { category: "Account & security", question: "How can I secure my account?", answer: "Enable authenticator-based two-factor authentication in My profile, use a unique password, and review active sessions regularly." },
+  { category: "Account & security", question: "How can I secure my account?", answer: "Use a unique, strong password and review active sessions regularly." },
 ];
 const guides = [
   { title: "Getting started", category: "Getting started", steps: "Create your company → connect an integration → sync products and orders → review inventory." },
   { title: "Manage products and inventory", category: "Products", steps: "Open Products or Inventory → double-click a row to edit → use row checkboxes for bulk actions." },
   { title: "Process orders", category: "Orders", steps: "Open Orders → review imported orders → create consignments or dispatch using your configured carrier." },
   { title: "Connect sales channels", category: "Integrations", steps: "Open Company Integrations → select a channel → enter its credentials → save and run a sync." },
-  { title: "Secure your account", category: "Account & security", steps: "Open My profile → set a strong password → enable authenticator 2FA → review active sessions." },
+  { title: "Secure your account", category: "Account & security", steps: "Open My profile → set a strong password → review active sessions." },
 ];
 
 function formatDate(value: string) {
@@ -272,7 +272,7 @@ export default function HelpSupport() {
       <PageMeta title="Help & Support | UniSell" description="Search UniSell help, manage support requests, and download the user manual." />
       <PageBreadcrumb pageTitle="Help & support" />
 
-      <section data-tour="help-center" className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/50">
+      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/50">
         <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Help & support</h1>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
           Search quick answers, follow a guide, or send a support request. Signed in as{" "}
