@@ -159,39 +159,42 @@ function ShopifyLogo({ className = "h-8 w-8" }: { className?: string }) {
   );
 }
 
+/** Real Daraz mark embedded as data URI (no public/assets files needed). */
+const DARAZ_LOGO_SRC =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAADvUlEQVR4nO2bQYhVZRiGn/dy/tMcEZFBZiUiLSzKpFwElYuIAhcuCuY/SNCiiHAxUVYgIw0iIkaigxQU1aKFNHCugtCiRULYSoWcgmYhRIuIVtIihPN3ZrxfCxtxMTXi/c85d5jzbO+57/fxcLj3/t93LnR0dHSsY9R2A2XuDmMkwOmsv3iz6frtC/BuXtLjmP0GHLLBoMjO3xo0Vb/XVKFVkbYhzanXu1R6t7upsqMjYBlpD3AlePd58G6i7nKjJwCQlCC9bnA9ePd28C6tq9ZIClhG0makWWA+eLe39C56jZEWcAfpEYNvBF8H73bEjF4bAgBJIO0DfgrenQzebYqRu2YE3EEaQ3oPWIhxN6w9ActIW4Fjw8asXQGAwTq+AyLRCWi7gbbpBLTdQNt0AtosXuYOoLGz/0q0JqD0bqeMb4VmDL60lkQ0LiB4Nx5y9xEwj/Q88EdWVK8CTxlcbrqfxgQE75Lg3QHgOmhKUnL361lRXcXsGYNXDH5vqq9GBATvnjX4AekTpC3/dV3WXxxkRXUWeNTgA4NQd2+1Cii92x686xt8J2nXvb4vK6q/sqKaBh4zuGA19liLgJC7jaV3xyQWkCal+xs+Z0X1S1ZULwEvGPwct8vbRBVQTia94N1+jAVJ74M2xMjNiuoi8ITBmwZ/xshcJpqA4N1uSZeQ5pC2xcpdJiuqpayoPgYeMvgiVu7QAsr9EHJ3HHHl35F2rWRFdQPskGFVjLxk9UtW4Zbbg3Q4Qi+rEnzSM5RjnJSUGsN/PA4vABrZ4oTb26IzinyXxRBQ61dp8G7C4DjiNVD0WjEE1ELpXSqYMpiRtLmuOiMnIEwmIO0FZpEernt9PVICgnc7DE5J7Gtqcz8CAmys9G6TYMZgStJYk9VHQABzgg1IE208rdG+AGl7m+W7mWDbDbRNJ6DtBtqmE9B2A23TCYiQ0eZmZ+jaMQT8iNU5t/0fpGvDRgwvQPre4MOmV1tmXMOYGTYn2s/vMk+fBGYFT8fKXAkzboAdAX2W9aulYfOinj/KPO0BLwMnBFtjZpvZEuhTwZGxfhVtNF7LAazM043ANPCOYOjjrRkXgYNZv4q+HKn1BFrm6YPAKYwX72s5ZPxq8C7oQtb/O3Z7QENjlzJPnwPOCHbey/VmdhN0Aux01l+sdUHa2AyizNMEOAAcFYyvdI3BAOMrxHRWVI2syBsfwpQ+3YI4CryhuwYyZlwV9pYsufzAubKxflr7z1CZp7swOwiMg85jg7PZuaVWnxfq6OjoWHf8A3ffDB7N2u+uAAAAAElFTkSuQmCC";
+
 function DarazLogo({ className = "h-8 w-8" }: { className?: string }) {
   return (
-    <svg
-      className={`rounded-sm ${className}`}
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-label="Daraz"
-      role="img"
-    >
-      <rect width="24" height="24" rx="3" fill="#111" />
-      {/* Geometric Daraz “d” mark */}
-      <path
-        fill="#F85606"
-        d="M7.5 8.2 10.2 5.8h4.4L17 8.2v7.6L14.6 18.2H10.2L7.5 15.8V8.2zm2.4 1.3v5.8l1.5 1.3h2.4l1.5-1.3V9.5L13.8 8.2h-2.4L9.9 9.5z"
-      />
-      <path fill="#111" d="M13.2 10.6v2.8l2.2-1.4z" />
-    </svg>
+    <img
+      src={DARAZ_LOGO_SRC}
+      alt="Daraz"
+      className={`rounded-sm object-contain ${className}`}
+      width={32}
+      height={32}
+      draggable={false}
+    />
   );
 }
 
 export type PlatformSyncState = "synced" | "pending" | "failed";
 
-function channelSyncState(
-  product: Product,
-  slug: ChannelSlug,
-  targets: ChannelSlug[]
-): PlatformSyncState | null {
+/** Only platforms this product is on (synced / source / its own integration_slugs) — not every company channel. */
+function productPlatforms(product: Product): ChannelSlug[] {
+  const src = (product.source || "").toLowerCase();
+  const slugs = product.integration_slugs ?? [];
+  const out: ChannelSlug[] = [];
+  if (product.shopify_synced || src === "shopify" || slugs.includes("shopify")) {
+    out.push("shopify");
+  }
+  if (product.daraz_synced || src === "daraz" || slugs.includes("daraz")) {
+    out.push("daraz");
+  }
+  return out;
+}
+
+function channelSyncState(product: Product, slug: ChannelSlug): PlatformSyncState {
   const synced = slug === "shopify" ? !!product.shopify_synced : !!product.daraz_synced;
   if (synced) return "synced";
-  const src = (product.source || "").toLowerCase();
-  const expected = targets.includes(slug) || src === slug;
-  if (!expected) return null;
-  // Expected but not linked yet → pending (yellow). No stored failure flag → treat as pending.
   return "pending";
 }
 
@@ -254,7 +257,6 @@ function PlatformLogoChip({
  */
 export function ProductPlatformLogos({
   product,
-  companyIntegrations,
   onRetryShopify,
   onRetryDaraz,
   retryingShopify,
@@ -263,7 +265,8 @@ export function ProductPlatformLogos({
   failedDaraz,
 }: {
   product: Product;
-  companyIntegrations: CompanyIntegration[];
+  /** Kept for callers; logos use product sync/source only, not all company channels. */
+  companyIntegrations?: CompanyIntegration[];
   onRetryShopify?: (product: Product) => void;
   onRetryDaraz?: (product: Product) => void;
   retryingShopify?: boolean;
@@ -271,14 +274,7 @@ export function ProductPlatformLogos({
   failedShopify?: boolean;
   failedDaraz?: boolean;
 }) {
-  const targets = getProductPushTargets(product, companyIntegrations);
-  const platforms: ChannelSlug[] = [];
-  if (product.shopify_synced || targets.includes("shopify") || (product.source || "").toLowerCase() === "shopify") {
-    platforms.push("shopify");
-  }
-  if (product.daraz_synced || targets.includes("daraz") || (product.source || "").toLowerCase() === "daraz") {
-    platforms.push("daraz");
-  }
+  const platforms = productPlatforms(product);
 
   if (platforms.length === 0) {
     return <span className="text-xs text-gray-400">—</span>;
@@ -287,7 +283,7 @@ export function ProductPlatformLogos({
   return (
     <div className="flex flex-nowrap items-center gap-2">
       {platforms.map((slug) => {
-        let state = channelSyncState(product, slug, targets) || "pending";
+        let state = channelSyncState(product, slug);
         if (state !== "synced") {
           if (slug === "shopify" && failedShopify) state = "failed";
           if (slug === "daraz" && failedDaraz) state = "failed";
