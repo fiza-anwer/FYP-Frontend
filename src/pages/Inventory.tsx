@@ -20,6 +20,7 @@ export default function Inventory() {
   const [products, setProducts] = useState<Product[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyFilter, setCompanyFilter] = useState("");
+  const [platformFilter, setPlatformFilter] = useState("");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest" | "name_asc" | "name_desc" | "free_low" | "free_high">(
@@ -96,6 +97,23 @@ export default function Inventory() {
         (row) => (row.product.product_type ?? "").trim().toLowerCase() === typeLower
       );
     }
+    if (platformFilter === "shopify") {
+      list = list.filter(
+        (row) =>
+          !!row.product.shopify_synced || (row.product.source || "").toLowerCase() === "shopify"
+      );
+    } else if (platformFilter === "daraz") {
+      list = list.filter(
+        (row) => !!row.product.daraz_synced || (row.product.source || "").toLowerCase() === "daraz"
+      );
+    } else if (platformFilter === "local") {
+      list = list.filter(
+        (row) =>
+          !row.product.shopify_synced &&
+          !row.product.daraz_synced &&
+          (row.product.source || "local").toLowerCase() === "local"
+      );
+    }
     if (outOfStockOnly) {
       list = list.filter((row) => {
         const qty = typeof row.product.quantity === "number" ? row.product.quantity : 0;
@@ -137,7 +155,7 @@ export default function Inventory() {
         break;
     }
     return list;
-  }, [flattenedRows, search, typeFilter, sort, outOfStockOnly]);
+  }, [flattenedRows, search, typeFilter, platformFilter, sort, outOfStockOnly]);
 
   const selectedRows = useMemo(
     () => filteredRows.filter((row) => selectedRowIds.includes(getRowId(row))),
@@ -315,6 +333,17 @@ export default function Inventory() {
                 {c.name}
               </option>
             ))}
+          </select>
+          <select
+            value={platformFilter}
+            onChange={(e) => setPlatformFilter(e.target.value)}
+            className="h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+            aria-label="Filter by platform"
+          >
+            <option value="">All platforms</option>
+            <option value="shopify">Shopify</option>
+            <option value="daraz">Daraz</option>
+            <option value="local">Local only</option>
           </select>
           <select
             value={typeFilter}
