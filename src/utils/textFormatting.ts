@@ -16,3 +16,8 @@ export function formatSentenceCase(value?: string | null): string {
   const lower = normalized.toLocaleLowerCase();
   return lower.charAt(0).toLocaleUpperCase() + lower.slice(1);
 }
+
+export function formatSku(value?: string | null): string {
+  const sku = (value ?? "").trim();
+  return sku.toLocaleLowerCase() === "other" ? "Other" : sku;
+}

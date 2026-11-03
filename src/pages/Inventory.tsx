@@ -15,7 +15,7 @@ import {
   type Product,
   type ProductVariant,
 } from "../api/client";
-import { formatSentenceCase, formatTitleCase } from "../utils/textFormatting";
+import { formatSentenceCase, formatSku, formatTitleCase } from "../utils/textFormatting";
 
 type InventoryRow = {
   product: Product;
@@ -305,7 +305,7 @@ export default function Inventory() {
         label: "SKU",
         render: (_, row) => {
           const sku = row.variant?.sku ?? row.product.sku;
-          return sku ? String(sku) : "—";
+          return formatSku(sku) || "—";
         },
       },
       {

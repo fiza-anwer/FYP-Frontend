@@ -16,7 +16,7 @@ import TextArea from "../components/form/input/TextArea";
 import Radio from "../components/form/input/Radio";
 import Checkbox from "../components/form/input/Checkbox";
 import { PlusIcon, TrashBinIcon } from "../icons";
-import { formatSentenceCase, formatTitleCase } from "../utils/textFormatting";
+import { formatSentenceCase, formatSku, formatTitleCase } from "../utils/textFormatting";
 
 type SortKey = "name_asc" | "name_desc" | "price_asc" | "price_desc" | "newest" | "oldest";
 
@@ -273,7 +273,7 @@ export default function Products() {
     setForm({
       title: p.title ?? "",
       description: p.description ?? "",
-      sku: p.sku ?? "",
+      sku: formatSku(p.sku),
       product_type: p.product_type ?? "",
       price: displayPrice != null ? String(displayPrice) : "",
       price_old: displayPriceOld != null ? String(displayPriceOld) : "",
@@ -285,7 +285,10 @@ export default function Products() {
       vendor: p.vendor ?? "",
       company_id: p.company_id ?? "",
       integration_slugs: Array.isArray(p.integration_slugs) ? p.integration_slugs : [],
-      variants: singleVariant,
+      variants: singleVariant.map((variant) => ({
+        ...variant,
+        ...(variant.sku != null ? { sku: formatSku(variant.sku) } : {}),
+      })),
     });
     setFormVisible(true);
   };
@@ -382,6 +385,7 @@ export default function Products() {
       const stockQty = parseQuantity(form.quantity);
       const variants = form.variants.map((v) => ({
         ...v,
+        ...(v.sku != null ? { sku: formatSku(v.sku) } : {}),
         ...(v.title != null ? { title: formatSentenceCase(v.title) } : {}),
         ...(v.option1 != null ? { option1: formatSentenceCase(v.option1) } : {}),
         ...(v.option2 != null ? { option2: formatSentenceCase(v.option2) } : {}),
@@ -403,7 +407,7 @@ export default function Products() {
           title: standardizedTitle,
           company_id: form.company_id.trim() || null,
           description: form.description.trim() || undefined,
-          sku: form.sku.trim() || undefined,
+          sku: formatSku(form.sku) || undefined,
           product_type: formatTitleCase(form.product_type) || undefined,
           price: price !== null ? price : null,
           price_old: price_old !== null ? price_old : null,
@@ -439,7 +443,7 @@ export default function Products() {
           title: standardizedTitle,
           company_id: form.company_id.trim() || undefined,
           description: form.description.trim() || undefined,
-          sku: form.sku.trim() || undefined,
+          sku: formatSku(form.sku) || undefined,
           product_type: formatTitleCase(form.product_type) || undefined,
           price: price !== null ? price : undefined,
           price_old: price_old !== null ? price_old : undefined,
@@ -759,7 +763,7 @@ export default function Products() {
         key: "sku",
         label: "SKU",
         render: (_, row) =>
-          String((row.variant?.sku ?? row.product.sku ?? "").trim() || "—"),
+          formatSku(row.variant?.sku ?? row.product.sku) || "—",
       },
       { key: "product_type", label: "Category", render: (_, row) => formatTitleCase(row.product.product_type) || "—" },
       {
