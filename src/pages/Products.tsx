@@ -16,6 +16,7 @@ import TextArea from "../components/form/input/TextArea";
 import Radio from "../components/form/input/Radio";
 import Checkbox from "../components/form/input/Checkbox";
 import { PlusIcon, TrashBinIcon } from "../icons";
+import { formatSentenceCase, formatTitleCase } from "../utils/textFormatting";
 
 type SortKey = "name_asc" | "name_desc" | "price_asc" | "price_desc" | "newest" | "oldest";
 
@@ -344,7 +345,8 @@ export default function Products() {
     e.preventDefault();
     if (saving) return;
     const title = form.title.trim();
-    if (!title) {
+    const standardizedTitle = formatTitleCase(title);
+    if (!standardizedTitle) {
       setError("Product title is required.");
       return;
     }
@@ -380,6 +382,9 @@ export default function Products() {
       const stockQty = parseQuantity(form.quantity);
       const variants = form.variants.map((v) => ({
         ...v,
+        ...(v.title != null ? { title: formatSentenceCase(v.title) } : {}),
+        ...(v.option1 != null ? { option1: formatSentenceCase(v.option1) } : {}),
+        ...(v.option2 != null ? { option2: formatSentenceCase(v.option2) } : {}),
         price: parsePrice(v.price as string | number),
         ...(stockQty != null && v.inventory_quantity == null ? { inventory_quantity: stockQty } : {}),
       }));
@@ -395,11 +400,11 @@ export default function Products() {
           }
         }
         const updatePayload = {
-          title,
+          title: standardizedTitle,
           company_id: form.company_id.trim() || null,
           description: form.description.trim() || undefined,
           sku: form.sku.trim() || undefined,
-          product_type: form.product_type.trim() || undefined,
+          product_type: formatTitleCase(form.product_type) || undefined,
           price: price !== null ? price : null,
           price_old: price_old !== null ? price_old : null,
           status: form.status,
@@ -431,11 +436,11 @@ export default function Products() {
         return;
       } else {
         const created = await tenantApi.createProduct({
-          title,
+          title: standardizedTitle,
           company_id: form.company_id.trim() || undefined,
           description: form.description.trim() || undefined,
           sku: form.sku.trim() || undefined,
-          product_type: form.product_type.trim() || undefined,
+          product_type: formatTitleCase(form.product_type) || undefined,
           price: price !== null ? price : undefined,
           price_old: price_old !== null ? price_old : undefined,
           status: form.status,
@@ -665,12 +670,11 @@ export default function Products() {
 
   const uniqueTypes = useMemo(() => {
     const byLower = new Map<string, string>();
-    const capitalize = (s: string) => (s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1).toLowerCase());
     products.forEach((p) => {
       const t = (p.product_type ?? "").trim();
       if (t) {
         const key = t.toLowerCase();
-        if (!byLower.has(key)) byLower.set(key, capitalize(t));
+        if (!byLower.has(key)) byLower.set(key, formatTitleCase(t));
       }
     });
     return Array.from(byLower.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
@@ -745,7 +749,10 @@ export default function Products() {
         key: "title",
         label: "Product",
         render: (_, row) => (
-          <ProductNameCell title={row.product.title} status={row.product.status} />
+          <ProductNameCell
+            title={formatTitleCase(row.product.title)}
+            status={row.product.status}
+          />
         ),
       },
       {
@@ -754,11 +761,11 @@ export default function Products() {
         render: (_, row) =>
           String((row.variant?.sku ?? row.product.sku ?? "").trim() || "—"),
       },
-      { key: "product_type", label: "Category", render: (_, row) => String(row.product.product_type || "—") },
+      { key: "product_type", label: "Category", render: (_, row) => formatTitleCase(row.product.product_type) || "—" },
       {
         key: "option",
-        label: "Variant (e.g. Size/Color)",
-        render: (_, row) => String(row.variant?.option1 ?? row.variant?.title ?? "—"),
+        label: "Variant (e.g. size/color)",
+        render: (_, row) => formatSentenceCase(row.variant?.option1 ?? row.variant?.title) || "—",
       },
       {
         key: "price",

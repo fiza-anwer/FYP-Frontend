@@ -498,6 +498,16 @@ export const tenantApi = {
     const q = searchParams.toString() ? `?${searchParams.toString()}` : "";
     return api<{ products: Product[] }>(`/api/tenant/products${q}`);
   },
+  standardizeProductText: () =>
+    api<{
+      scanned: number;
+      updated: number;
+      update_failed: number;
+      shopify_updated: number;
+      shopify_failed: number;
+      daraz_manual_update_required: number;
+      errors: Array<{ product_id: string; channel: string; message: string }>;
+    }>("/api/tenant/products/standardize-text", { method: "POST" }),
   createProduct: (body: {
     title: string;
     company_id?: string;

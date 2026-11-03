@@ -15,6 +15,7 @@ import {
   type Product,
   type ProductVariant,
 } from "../api/client";
+import { formatSentenceCase, formatTitleCase } from "../utils/textFormatting";
 
 type InventoryRow = {
   product: Product;
@@ -187,12 +188,11 @@ export default function Inventory() {
 
   const uniqueTypes = useMemo(() => {
     const byLower = new Map<string, string>();
-    const capitalize = (s: string) => (s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1).toLowerCase());
     products.forEach((p) => {
       const t = (p.product_type ?? "").trim();
       if (t) {
         const key = t.toLowerCase();
-        if (!byLower.has(key)) byLower.set(key, capitalize(t));
+        if (!byLower.has(key)) byLower.set(key, formatTitleCase(t));
       }
     });
     return Array.from(byLower.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
@@ -294,7 +294,7 @@ export default function Inventory() {
         label: "Product",
         render: (_, row) => (
           <ProductNameCell
-            title={row.product.title}
+            title={formatTitleCase(row.product.title)}
             status={row.product.status}
             className="font-medium text-gray-900 dark:text-white"
           />
@@ -310,8 +310,8 @@ export default function Inventory() {
       },
       {
         key: "option",
-        label: "Variant (e.g. Size/Color)",
-        render: (_, row) => String(row.variant?.option1 ?? row.variant?.title ?? "—"),
+        label: "Variant (e.g. size/color)",
+        render: (_, row) => formatSentenceCase(row.variant?.option1 ?? row.variant?.title) || "—",
       },
       {
         key: "quantity",
