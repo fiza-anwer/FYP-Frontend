@@ -40,44 +40,98 @@ const storeSteps: TourStep[] = [
     path: "/",
     target: "[data-tour='sidebar-navigation']",
     mobileTarget: "[data-tour='mobile-sidebar-toggle']",
-    title: "Find your way around",
-    body: "Use the sidebar to move between your dashboard, orders, products, inventory, and store setup.",
+    title: "Navigate the workspace",
+    body: "The sidebar groups your daily work: Dashboard; Orders and Consignments; Products and Inventory; and Setup for companies, sales channels, carriers, and carrier services. Expand a group, then choose a page. On mobile, open the sidebar with the menu button.",
   },
   {
     path: "/",
     target: "[data-tour='dashboard-overview']",
-    title: "Your store at a glance",
-    body: "Review sales, order activity, catalog size, and products that may need attention.",
+    title: "Start at the dashboard",
+    body: "Use the summary cards and charts to understand sales, order volume, and catalog size. Follow the getting-started checklist for setup tasks and use product/order links to investigate activity.",
   },
   {
-    path: "/products",
-    target: "[data-tour='products-add']",
-    title: "Build your catalog",
-    body: "Add products here, then manage listings and select rows for bulk actions.",
+    path: "/companies",
+    target: "[data-tour='companies-list']",
+    title: "Set up your company",
+    body: "Create a company for each business or brand you operate. Add its ship-from address, city, postal code, and two-letter country code: shipping workflows use this as the origin on carrier bookings and labels. Use each row’s Edit or Delete action to maintain company details.",
   },
   {
-    path: "/orders",
-    target: "[data-tour='orders-overview']",
-    title: "Manage orders",
-    body: "Review imported orders and follow their fulfillment status from this page.",
+    path: "/company-integrations",
+    target: "[data-tour='integrations-list']",
+    title: "Connect a sales channel",
+    body: "Choose Add integration, select the company and channel, enter the required credentials (or complete Daraz authorization), enable the features you need, then save. Keep credentials private. Only active integrations run their enabled product, order, and inventory syncs; use Edit to update a connection.",
   },
   {
     path: "/company-integrations",
     target: "[data-tour='integrations-add']",
-    title: "Connect a sales channel",
-    body: "Add an integration to sync supported products, inventory, and orders.",
+    title: "Choose what each channel syncs",
+    body: "When creating or editing an integration, enable only the features you want UniSell to manage. Product imports bring listings into the catalog, order imports bring purchases into Orders, and inventory sync keeps supported stock levels aligned. Check connection status and credentials if a sync is missing.",
   },
   {
-    path: "/",
-    target: "[data-tour='profile-menu']",
-    title: "Account and preferences",
-    body: "Use the top-right menu for account settings, help, and sign out; theme controls are beside it.",
+    path: "/carrier-integrations",
+    target: "[data-tour='carrier-integrations-list']",
+    title: "Connect your courier account",
+    body: "Carrier Integrations are separate from sales channels. Add a carrier account, provide the API credentials from your courier, and activate it. An active carrier is available when you create a shipping consignment.",
+  },
+  {
+    path: "/carrier-integration-services",
+    target: "[data-tour='carrier-services-list']",
+    title: "Configure carrier services",
+    body: "Add the carrier services enabled for your courier account and select the correct service code. Filter by carrier to manage mappings. You need a configured service before booking labels from an order.",
+  },
+  {
+    path: "/products",
+    target: "[data-tour='products-create']",
+    title: "Create a product listing",
+    body: "Choose Add product to enter the product name, SKU, category, price, quantity, description, images, and optional variants. Assign the company and choose target channels before saving. Use a distinct SKU for each sellable variant; product names and categories are saved in standardized casing.",
+  },
+  {
+    path: "/products",
+    target: "[data-tour='products-table']",
+    title: "Find, edit, and publish products",
+    body: "Search by name, SKU, option, or category; filter by company, platform, status, and category; and sort the list. Select a row to enable Edit, Delete, Push to Shopify, or Push to Daraz. You can also double-click a row to edit it. Check platform status and any warning after saving.",
+  },
+  {
+    path: "/inventory",
+    target: "[data-tour='inventory-toolbar']",
+    title: "Understand and adjust stock",
+    body: "Available (total) is on-hand stock; Allocated (ordered) is reserved for orders; Free stock is the remainder. Search and filter by company, platform, or category, then select a row and choose Edit (or double-click it) to adjust quantity. Inventory updates are sent to supported connected channels.",
+  },
+  {
+    path: "/inventory",
+    target: "[data-tour='inventory-sync']",
+    title: "Run a manual sync",
+    body: "Use Sync to request the available product, order, and stock synchronization jobs. Read the completion message for counts and errors. If a listing fails, verify the company connection, product SKU/category, and channel requirements before retrying.",
+  },
+  {
+    path: "/orders",
+    target: "[data-tour='orders-toolbar']",
+    title: "Review incoming orders",
+    body: "Orders are imported from enabled sales-channel connections. Filter by company, sort by date, and toggle Include dispatched to show or hide completed dispatches. Select orders in the table to enable actions. Orders missing a company can be assigned using the company/source form shown on the page.",
+  },
+  {
+    path: "/orders",
+    target: "[data-tour='orders-consignment']",
+    title: "Create shipping labels from orders",
+    body: "Select one or more orders with a shipping address, then choose Create consignment. Pick an active carrier integration and a configured service; review the suggested carrier when shown. Orders without addresses are excluded. Submit to book shipment(s), then open the resulting label to print it.",
+  },
+  {
+    path: "/consignments",
+    target: "[data-tour='consignments-list']",
+    title: "Dispatch and track consignments",
+    body: "This page lists booked shipments. Select eligible orders and choose Dispatch to hand them to the courier; already-dispatched orders and orders without addresses are excluded. Use each consignment’s Print label and Track actions to get the shipping document and delivery progress.",
+  },
+  {
+    path: "/profile",
+    target: "[data-tour='profile-settings']",
+    title: "Manage your account safely",
+    body: "Update your profile and password from My Profile. Review active sessions and revoke sessions you no longer recognize. Use a unique password and never share marketplace or carrier API credentials.",
   },
   {
     path: "/help-support",
     target: "[data-tour='help-center']",
-    title: "Help whenever you need it",
-    body: "Search guides, contact support, and replay this tour from the Help & support page.",
+    title: "Get help and restart this walkthrough",
+    body: "Search the task guides and FAQs, download the user manual, check service status, or submit a support request with a clear description and optional attachment. Return here any time to restart this full system tour.",
   },
 ];
 
@@ -85,13 +139,13 @@ const pageSteps: Record<PageTour, TourStep[]> = {
   products: [
     {
       path: "/products",
-      target: "[data-tour='products-add']",
+      target: "[data-tour='products-create']",
       title: "Add a product",
       body: "Create a catalog listing here. Add a title, SKU, price, and any variants you need.",
     },
     {
       path: "/products",
-      target: "[data-tour='products-list'], [data-tour-form='products-list']",
+      target: "[data-tour='products-table']",
       title: "Manage your catalog",
       body: "Search and filter listings, double-click a row to edit, or select rows for bulk actions.",
     },
@@ -105,7 +159,7 @@ const pageSteps: Record<PageTour, TourStep[]> = {
     },
     {
       path: "/company-integrations",
-      target: "[data-tour='integrations-list'], [data-tour-form='integrations-list']",
+      target: "[data-tour='integrations-list']",
       title: "Review connections",
       body: "Check connection status here and edit or remove integrations when needed.",
     },
@@ -279,10 +333,10 @@ function TourExperience({
     : Math.max(16, (window.innerWidth - tooltipWidth) / 2);
   const tooltipTop = rect
     ? rect.height < 240
-      ? rect.bottom + 232 < window.innerHeight
+      ? rect.bottom + 372 < window.innerHeight
         ? rect.bottom + 12
-        : Math.max(16, rect.top - 220)
-      : Math.max(16, Math.min(window.innerHeight - 220, rect.top + Math.min(rect.height / 2, 120) - 80))
+        : Math.max(16, rect.top - 360)
+      : Math.max(16, Math.min(window.innerHeight - 360, rect.top + Math.min(rect.height / 2, 120) - 80))
     : Math.max(16, (window.innerHeight - 200) / 2);
 
   if (welcomeOpen) {
@@ -298,10 +352,10 @@ function TourExperience({
         >
           <p className="text-sm font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">Welcome to UniSell</p>
           <h2 id="store-tour-welcome-title" className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">Welcome, {name}!</h2>
-          <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">Would you like a quick 2-minute tour of your store tools?</p>
+          <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">Would you like a complete guided walkthrough of your store setup, catalog, inventory, orders, and shipping workflows? It takes about 8–10 minutes.</p>
           <div className="mt-6 flex flex-wrap justify-end gap-3">
             <button className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5" type="button" onClick={dismissWelcome}>Skip for now</button>
-            <button className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700" type="button" onClick={beginStoreTour}>Start tour</button>
+            <button className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700" type="button" onClick={beginStoreTour}>Start full tour</button>
           </div>
         </section>
       </div>
@@ -310,7 +364,7 @@ function TourExperience({
 
   if (activeTour && step) {
     const left = rect ? Math.max(16, Math.min(tooltipLeft, window.innerWidth - tooltipWidth - 16)) : tooltipLeft;
-    const top = rect ? Math.max(16, Math.min(tooltipTop, window.innerHeight - 220)) : tooltipTop;
+    const top = rect ? Math.max(16, Math.min(tooltipTop, window.innerHeight - 360)) : tooltipTop;
     const panels = rect
       ? [
           { top: 0, left: 0, width: "100vw", height: Math.max(0, rect.top - 8) },
@@ -341,7 +395,7 @@ function TourExperience({
           aria-label="Store tour"
           aria-modal="true"
           ref={dialogRef}
-          className="fixed z-[100002] w-[calc(100vw-32px)] rounded-2xl border border-violet-100 bg-white p-5 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+          className="fixed z-[100002] max-h-[calc(100vh-32px)] w-[calc(100vw-32px)] overflow-y-auto rounded-2xl border border-violet-100 bg-white p-5 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
           role="dialog"
           aria-labelledby="store-tour-step-title"
           style={{ maxWidth: tooltipWidth, left, top }}

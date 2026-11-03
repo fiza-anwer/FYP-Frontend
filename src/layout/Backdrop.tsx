@@ -1,14 +1,16 @@
 import { useSidebar } from "../context/SidebarContext";
 
 const Backdrop: React.FC = () => {
-  const { isMobileOpen } = useSidebar();
+  const { isMobileOpen, closeMobileSidebar } = useSidebar();
 
   if (!isMobileOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-40 bg-gray-900/50 lg:hidden"
-      aria-hidden="true"
+    <button
+      type="button"
+      className="fixed inset-x-0 bottom-0 top-[76px] z-40 cursor-default bg-gray-900/50 lg:hidden"
+      aria-label="Close navigation"
+      onClick={closeMobileSidebar}
     />
   );
 };

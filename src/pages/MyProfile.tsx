@@ -189,7 +189,7 @@ export default function MyProfile() {
       }
     }
   return (
-    <div>
+    <div data-tour="profile-settings">
       <PageMeta title="My Profile | UniSell" description="View and update your UniSell account details." />
       <PageBreadcrumb pageTitle="My profile" />
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/50">

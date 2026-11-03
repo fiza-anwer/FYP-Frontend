@@ -43,11 +43,92 @@ const faqs = [
   { category: "Account & security", question: "How can I secure my account?", answer: "Use a unique, strong password and review active sessions regularly." },
 ];
 const guides = [
-  { title: "Getting started", category: "Getting started", steps: "Create your company → connect an integration → sync products and orders → review inventory." },
-  { title: "Manage products and inventory", category: "Products", steps: "Open Products or Inventory → double-click a row to edit → use row checkboxes for bulk actions." },
-  { title: "Process orders", category: "Orders", steps: "Open Orders → review imported orders → create consignments or dispatch using your configured carrier." },
-  { title: "Connect sales channels", category: "Integrations", steps: "Open Company Integrations → select a channel → enter its credentials → save and run a sync." },
-  { title: "Secure your account", category: "Account & security", steps: "Open My profile → set a strong password → review active sessions." },
+  {
+    title: "Set up a company and start using UniSell",
+    category: "Getting started",
+    steps: [
+      "Open Setup → Companies and choose Add company. Enter your business name and ship-from address; the address is used as the shipment origin on carrier labels.",
+      "Open Setup → Company Integrations and choose Add integration. Select the company and a marketplace, enter credentials or complete the channel authorization, enable the sync features you want, then save.",
+      "Open Products to review imported listings or create a product. Check the company, SKU, category, price, variant, and channel selection before saving.",
+      "Open Inventory and review Available, Allocated, and Free stock. Use Sync to run the available imports/updates and read the result message for warnings.",
+      "Open Orders to review imported orders. Configure courier accounts and carrier services before creating consignments and labels.",
+    ],
+  },
+  {
+    title: "Add, edit, publish, and remove products",
+    category: "Products",
+    steps: [
+      "Open Products → Add product. Enter a recognizable product name, unique SKU, category, price, stock quantity, and any description, images, tags, or variants.",
+      "Choose the company and target channels. A channel-bound product may require a SKU, category, and channel-specific image/variant requirements.",
+      "Save the product. Review the sync status and any warning; a local save does not always mean a marketplace listing was created.",
+      "Use search, company/platform/status/category filters, and sorting to locate listings. Select a row to use Edit, Delete, Push to Shopify, or Push to Daraz; double-click a row to edit it.",
+      "Use Push only for an available target channel. Review the resulting status and message, and fix missing credentials or required listing data before retrying.",
+    ],
+  },
+  {
+    title: "Manage inventory accurately",
+    category: "Inventory",
+    steps: [
+      "Open Inventory. Available (total) is on-hand stock, Allocated (ordered) is reserved for orders, and Free stock is the available remainder.",
+      "Search by product, SKU, or variant; filter by company, platform, or category; sort by newest, name, or free-stock level.",
+      "Select a product and choose Edit, or double-click its row, to adjust stock. The adjustment updates the local inventory record and syncs to supported connected channels.",
+      "Choose Sync to import/update supported channel data. Check the success/error message; a disconnected integration or invalid SKU can prevent a channel update.",
+      "Use the out-of-stock view when opened from a stock alert, and choose Show all to clear that focused view.",
+    ],
+  },
+  {
+    title: "Review and prepare orders for shipping",
+    category: "Orders",
+    steps: [
+      "Orders are imported from active company integrations with order sync enabled. Open Orders and filter by company or sort by newest/oldest.",
+      "Use Include dispatched to show or hide completed dispatches. Select rows to enable order actions; check each order’s address and fulfillment state.",
+      "If orders have no company assigned, use the assignment form: choose the company and source, then assign. This makes them available in company filters.",
+      "Select one or more eligible orders with a shipping address and choose Create consignment. Orders without addresses are excluded.",
+      "Choose the carrier integration and carrier service. Review an available route suggestion, then create the consignment to book shipment labels.",
+    ],
+  },
+  {
+    title: "Print labels, dispatch, and track shipments",
+    category: "Consignments",
+    steps: [
+      "Before booking, configure an active carrier integration and at least one carrier service under Setup.",
+      "Create consignments from eligible orders. A company ship-from address and customer shipping address are used for the shipment.",
+      "Open Consignments to filter by company and sort the list. Select eligible consignments and choose Dispatch to submit them to the courier.",
+      "Use Print label to open the courier label. Use Track on a dispatched shipment to follow delivery status.",
+      "If booking or dispatch fails, verify the carrier credentials, active status, service mapping, addresses, and carrier response before retrying.",
+    ],
+  },
+  {
+    title: "Connect marketplaces and manage sync",
+    category: "Integrations",
+    steps: [
+      "Create a company first. Open Company Integrations → Add integration and select the owning company and channel.",
+      "Enter the credentials requested by the integration. For Daraz, complete OAuth and save promptly so the returned token is stored.",
+      "Enable the required products, orders, and inventory features, then save and confirm the integration is active.",
+      "Use the Products page’s Push actions for eligible listings and Inventory’s Sync action for available imports/updates. Review sync badges and warning messages.",
+      "If sync stops, check connection status and credentials, feature selection, SKU/category/image requirements, and whether that channel supports the requested update.",
+    ],
+  },
+  {
+    title: "Connect courier accounts and service codes",
+    category: "Shipping setup",
+    steps: [
+      "Open Carrier Integrations → Add carrier integration. Select the courier, enter its API credentials, and activate it.",
+      "Open Carrier Integration Services → Add service. Choose the carrier integration and map the service code supplied by the courier.",
+      "Return to Orders and create a consignment. The active courier and mapped service should now be available for booking.",
+      "Edit credentials or service mappings when the courier changes them; deactivate a carrier if it should no longer be offered.",
+    ],
+  },
+  {
+    title: "Update account and protect access",
+    category: "Account & security",
+    steps: [
+      "Open My Profile from the account menu. Update your name, avatar, or email as the available profile fields allow, then save.",
+      "Use the password form to change your password. Follow the form’s strength guidance and never reuse a password from another service.",
+      "Review active sessions and revoke sessions you do not recognize or no longer use.",
+      "Never paste marketplace, carrier, or account passwords into support messages. Share the affected page, item/order reference, time, and error instead.",
+    ],
+  },
 ];
 
 function formatDate(value: string) {
@@ -127,7 +208,7 @@ export default function HelpSupport() {
   const filteredGuides = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return guides;
-    return guides.filter((guide) => `${guide.title} ${guide.category} ${guide.steps}`.toLowerCase().includes(term));
+    return guides.filter((guide) => `${guide.title} ${guide.category} ${guide.steps.join(" ")}`.toLowerCase().includes(term));
   }, [query]);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -272,7 +353,7 @@ export default function HelpSupport() {
       <PageMeta title="Help & Support | UniSell" description="Search UniSell help, manage support requests, and download the user manual." />
       <PageBreadcrumb pageTitle="Help & support" />
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/50">
+      <section data-tour="help-center" className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/50">
         <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Help & support</h1>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
           Search quick answers, follow a guide, or send a support request. Signed in as{" "}
@@ -281,10 +362,10 @@ export default function HelpSupport() {
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-violet-50 px-4 py-3 dark:bg-violet-950/30">
           <div>
             <h2 className="font-semibold text-gray-900 dark:text-white">Getting started</h2>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Take a quick tour of the main store tools whenever you need a refresher.</p>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">Walk through setup, products, inventory, orders, and shipping workflows. You can restart this full tour whenever you need it.</p>
           </div>
           <button className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700" type="button" onClick={startTour}>
-            Replay store tour
+            Start full system tour
           </button>
         </div>
         <label className="mt-5 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -298,7 +379,7 @@ export default function HelpSupport() {
           />
         </label>
         <div className="mt-4 flex flex-wrap gap-2">
-          {["Getting started", "Products", "Orders", "Integrations", "Account & security"].map((helpCategory) => (
+          {["Getting started", "Products", "Inventory", "Orders", "Consignments", "Integrations", "Shipping setup", "Account & security"].map((helpCategory) => (
             <button
               key={helpCategory}
               className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-violet-300 hover:text-violet-700 dark:border-gray-700 dark:text-gray-300"
@@ -314,7 +395,9 @@ export default function HelpSupport() {
             <article className="rounded-xl border border-gray-200 p-4 dark:border-gray-800" key={guide.title}>
               <p className="text-xs font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">{guide.category}</p>
               <h2 className="mt-1 font-semibold text-gray-900 dark:text-white">{guide.title}</h2>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{guide.steps}</p>
+              <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-gray-600 dark:text-gray-400">
+                {guide.steps.map((step) => <li key={step}>{step}</li>)}
+              </ol>
             </article>
           ))}
           {!filteredGuides.length && <p className="text-sm text-gray-500">No guides match your search.</p>}

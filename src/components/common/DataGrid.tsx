@@ -21,6 +21,8 @@ type DataGridProps<T> = {
   onSelectionChange?: (ids: string[]) => void;
   /** Double-click a data row (not the checkbox cell) */
   onRowDoubleClick?: (row: T) => void;
+  /** Render each row as a stacked card on small screens instead of a clipped table. */
+  mobileCards?: boolean;
 };
 
 const thClass =
@@ -39,6 +41,7 @@ function DataGrid<T>({
   selectedIds = [],
   onSelectionChange,
   onRowDoubleClick,
+  mobileCards = false,
 }: DataGridProps<T>) {
   const set = new Set(selectedIds);
   const allSelected = data.length > 0 && data.every((row) => set.has(keyExtractor(row)));
@@ -52,6 +55,10 @@ function DataGrid<T>({
     if (set.has(id)) onSelectionChange(selectedIds.filter((x) => x !== id));
     else onSelectionChange([...selectedIds, id]);
   };
+  const renderCell = (row: T, col: DataGridColumn<T>) => {
+    const value = (row as Record<string, unknown>)[col.key];
+    return (col.render ? col.render(value, row) : (value as React.ReactNode)) ?? "—";
+  };
 
   return (
     <div
@@ -60,7 +67,62 @@ function DataGrid<T>({
         className
       }
     >
-      <div className="overflow-x-auto">
+      {mobileCards && (
+        <div className="space-y-3 p-3 sm:hidden">
+          {loading ? (
+            <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Loading…</p>
+          ) : data.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">{emptyMessage}</p>
+          ) : (
+            data.map((row, index) => {
+              const id = keyExtractor(row);
+              const rowKey = id != null && String(id).trim() !== "" ? String(id) : `mobile-row-${index}`;
+              return (
+                <article
+                  key={rowKey}
+                  onDoubleClick={() => onRowDoubleClick?.(row)}
+                  className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/60"
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    {selectable && (
+                      <input
+                        type="checkbox"
+                        aria-label={`Select row ${index + 1}`}
+                        checked={set.has(id)}
+                        onChange={() => toggleOne(id)}
+                        className="mt-1 shrink-0 rounded border-gray-300 dark:border-gray-600"
+                      />
+                    )}
+                    {columns[0] && (
+                      <div className="min-w-0 flex-1">
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          {columns[0].label}
+                        </p>
+                        <div className="min-w-0">{renderCell(row, columns[0])}</div>
+                      </div>
+                    )}
+                  </div>
+                  {columns.length > 1 && (
+                    <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+                      {columns.slice(1).map((col) => (
+                        <div className="min-w-0" key={col.key}>
+                          <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            {col.label}
+                          </dt>
+                          <dd className="mt-0.5 min-w-0 break-words text-sm text-gray-800 dark:text-gray-200">
+                            {renderCell(row, col)}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                </article>
+              );
+            })
+          )}
+        </div>
+      )}
+      <div className={`${mobileCards ? "hidden sm:block" : ""} overflow-x-auto`}>
         <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
           <thead className="bg-gray-50/80 backdrop-blur-sm sticky top-0 z-10 dark:bg-gray-900/80">
             <tr>

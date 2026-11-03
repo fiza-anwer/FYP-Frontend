@@ -312,7 +312,7 @@ export default function Orders() {
             {consignmentSuccessCount} consignment(s) created. Use Print label to open each shipping label.
           </div>
         )}
-        <StickyToolbar className="flex flex-wrap items-center gap-4 py-2">
+        <StickyToolbar className="flex flex-wrap items-center gap-4 py-2" data-tour="orders-toolbar">
           <select
             value={companyFilter}
             onChange={(e) => setCompanyFilter(e.target.value)}
@@ -347,6 +347,7 @@ export default function Orders() {
           <div className="flex items-center gap-2 ml-auto">
             <button
               type="button"
+              data-tour="orders-consignment"
               onClick={openConsignmentModal}
               disabled={selectedWithAddress.length === 0}
               className="px-3 py-2 text-sm font-medium text-white rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"

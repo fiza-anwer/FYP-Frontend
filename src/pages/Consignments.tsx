@@ -231,7 +231,7 @@ export default function Consignments() {
     <>
       <PageMeta title="Consignments | UniSell" description="Consigned orders: print labels, dispatch, and track." />
       <PageBreadcrumb pageTitle="Consignments" />
-      <div className="space-y-4">
+      <div className="space-y-4" data-tour="consignments-list">
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
             {error}

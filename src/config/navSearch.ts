@@ -10,6 +10,9 @@ export const tenantSearchPages: SearchPage[] = [
   { name: "Company Integrations", path: "/company-integrations", group: "Setup", keywords: "shopify daraz channel" },
   { name: "Carrier Integrations", path: "/carrier-integrations", group: "Setup", keywords: "leopard dhl courier" },
   { name: "Carrier Services", path: "/carrier-integration-services", group: "Setup", keywords: "delivery service" },
+  { name: "Help & support", path: "/help-support", group: "Help", keywords: "guide support faq" },
+  { name: "Settings", path: "/settings", group: "Settings", keywords: "preferences configuration" },
+  { name: "Appearance", path: "/settings/appearance", group: "Settings", keywords: "theme light dark display" },
 ];
 
 export const superadminSearchPages: SearchPage[] = [

@@ -166,7 +166,7 @@ export default function GlobalSearch({ inputRef, className = "", isSuperadmin = 
   let flatIndex = -1;
 
   return (
-    <div ref={wrapRef} className={`relative ${className}`}>
+    <div ref={wrapRef} data-tour="global-search" className={`relative ${className}`}>
       <form
         onSubmit={(e) => {
           e.preventDefault();

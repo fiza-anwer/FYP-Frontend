@@ -15,7 +15,7 @@ import {
   type Product,
   type ProductVariant,
 } from "../api/client";
-import { formatSentenceCase, formatSku, formatTitleCase } from "../utils/textFormatting";
+import { formatSentenceCase, formatSku, formatSkuPreview, formatTitleCase } from "../utils/textFormatting";
 
 type InventoryRow = {
   product: Product;
@@ -34,6 +34,7 @@ export default function Inventory() {
   const [companyFilter, setCompanyFilter] = useState("");
   const [platformFilter, setPlatformFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest" | "name_asc" | "name_desc" | "free_low" | "free_high">(
     "newest"
@@ -304,8 +305,17 @@ export default function Inventory() {
         key: "sku",
         label: "SKU",
         render: (_, row) => {
-          const sku = row.variant?.sku ?? row.product.sku;
-          return formatSku(sku) || "—";
+          const sku = formatSku(row.variant?.sku ?? row.product.sku) || "—";
+          return (
+            <>
+              <span className="block max-w-[80px] truncate sm:hidden" title={sku}>
+                {formatSkuPreview(sku, 7)}
+              </span>
+              <span className="hidden max-w-[180px] truncate sm:block" title={sku}>
+                {formatSkuPreview(sku)}
+              </span>
+            </>
+          );
         },
       },
       {
@@ -390,19 +400,33 @@ export default function Inventory() {
             </button>
           </div>
         )}
-        <StickyToolbar className="flex flex-wrap items-center gap-4 py-2">
+        <StickyToolbar className="flex flex-col items-stretch gap-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4" data-tour="inventory-toolbar">
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search products, SKU, variants..."
-            className="h-11 w-full max-w-xs rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:max-w-xs"
           />
+          <button
+            type="button"
+            aria-expanded={mobileToolbarOpen}
+            aria-controls="inventory-mobile-controls"
+            onClick={() => setMobileToolbarOpen((open) => !open)}
+            className="flex h-11 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:hidden"
+          >
+            <span>Filters and actions</span>
+            <span aria-hidden="true">{mobileToolbarOpen ? "−" : "+"}</span>
+          </button>
+          <div
+            id="inventory-mobile-controls"
+            className={`${mobileToolbarOpen ? "grid" : "hidden"} grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-4`}
+          >
           <button
             type="button"
             onClick={handleToolbarEdit}
             disabled={!hasSelection}
-            className="h-11 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 sm:w-auto sm:px-4"
           >
             Edit
           </button>
@@ -410,14 +434,14 @@ export default function Inventory() {
             type="button"
             onClick={() => void handleToolbarDelete()}
             disabled={!hasSelection}
-            className="h-11 rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-600 shadow-sm hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-rose-800 dark:bg-gray-800 dark:text-rose-400 dark:hover:bg-rose-900/20"
+            className="h-11 w-full rounded-lg border border-rose-200 bg-white px-3 text-sm font-medium text-rose-600 shadow-sm hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-rose-800 dark:bg-gray-800 dark:text-rose-400 dark:hover:bg-rose-900/20 sm:w-auto sm:px-4"
           >
             Delete
           </button>
           <select
             value={companyFilter}
             onChange={(e) => setCompanyFilter(e.target.value)}
-            className="h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
             aria-label="Filter by company"
           >
             <option value="">All companies</option>
@@ -430,7 +454,7 @@ export default function Inventory() {
           <select
             value={platformFilter}
             onChange={(e) => setPlatformFilter(e.target.value)}
-            className="h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
             aria-label="Filter by platform"
           >
             <option value="">All platforms</option>
@@ -442,7 +466,7 @@ export default function Inventory() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
             aria-label="Filter by category"
           >
             <option value="">All categories</option>
@@ -457,7 +481,7 @@ export default function Inventory() {
             onChange={(e) =>
               setSort(e.target.value as typeof sort)
             }
-            className="h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
             aria-label="Sort inventory"
           >
             <option value="newest">Newest first</option>
@@ -467,8 +491,10 @@ export default function Inventory() {
             <option value="free_high">Free stock: high to low</option>
             <option value="free_low">Free stock: low to high</option>
           </select>
+          </div>
           <button
             type="button"
+            data-tour="inventory-sync"
             onClick={async () => {
               setError("");
               setSyncMessage("");
@@ -518,7 +544,7 @@ export default function Inventory() {
               }
             }}
             disabled={syncing}
-            className="ml-auto h-11 rounded-lg border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100 disabled:opacity-60 dark:border-sky-600 dark:bg-sky-900/20 dark:text-sky-200 dark:hover:bg-sky-900/30"
+            className="h-11 w-full rounded-lg border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100 disabled:opacity-60 dark:border-sky-600 dark:bg-sky-900/20 dark:text-sky-200 dark:hover:bg-sky-900/30 sm:ml-auto sm:w-auto"
           >
             {syncing ? "Syncing…" : "Sync"}
           </button>
@@ -533,6 +559,7 @@ export default function Inventory() {
           emptyMessage="No inventory. Add products or import from a connected store."
           loading={loading}
           selectable
+          mobileCards
           selectedIds={selectedRowIds}
           onSelectionChange={setSelectedRowIds}
           onRowDoubleClick={(row) => openAdjust(row)}

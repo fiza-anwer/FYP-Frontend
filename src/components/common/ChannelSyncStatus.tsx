@@ -1,4 +1,5 @@
 import type { CompanyIntegration, Order, Product } from "../../api/client";
+import { formatProductNamePreview } from "../../utils/textFormatting";
 
 export type ChannelSlug = "shopify" | "daraz";
 
@@ -102,9 +103,15 @@ export function ProductNameCell({
   status?: string;
   className?: string;
 }) {
+  const displayTitle = title?.trim() || "—";
   return (
-    <span className={`inline-flex flex-wrap items-center gap-1.5 ${className ?? ""}`}>
-      <span>{title?.trim() ? title : "—"}</span>
+    <span className={`inline-flex min-w-0 max-w-full items-center gap-1.5 ${className ?? ""}`}>
+      <span className="block max-w-full whitespace-normal break-words sm:hidden" title={displayTitle}>
+        {displayTitle}
+      </span>
+      <span className="hidden max-w-[280px] truncate sm:block" title={displayTitle}>
+        {formatProductNamePreview(displayTitle)}
+      </span>
       <ProductStatusBadge status={status} />
     </span>
   );

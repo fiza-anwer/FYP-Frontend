@@ -295,7 +295,7 @@ export default function CompanyIntegrations() {
     <div>
       <PageMeta title="Company Integrations | UniSell" description="Manage your company integrations." />
       <PageBreadcrumb pageTitle="Company Integrations" />
-      <div className="space-y-4">
+      <div className="space-y-4" data-tour="integrations-list">
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
             {error}
@@ -490,6 +490,7 @@ export default function CompanyIntegrations() {
               <button
                 type="button"
                 onClick={openCreate}
+                data-tour="integrations-add"
                 className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
               >
                 Add integration

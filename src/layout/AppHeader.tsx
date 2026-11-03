@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
-import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 import UserDropdown from "../components/header/UserDropdown";
 import GlobalSearch from "../components/header/GlobalSearch";
 
@@ -101,18 +100,36 @@ const AppHeader: React.FC = () => {
             {/* Cross Icon */}
           </button>
 
-          <Link to="/" className="lg:hidden flex items-center min-w-0">
-            {displayName ? (
-              <span className="text-3xl font-bold truncate text-gray-900 dark:text-white">
-                {displayName}
-              </span>
-            ) : (
-              <>
-                <img className="dark:hidden" src="./images/logo/logo.svg" alt="Logo" />
-                <img className="hidden dark:block" src="./images/logo/logo-dark.svg" alt="Logo" />
-              </>
-            )}
-          </Link>
+          <div className="flex min-w-0 flex-1 items-center gap-2 lg:hidden">
+            <button
+              type="button"
+              data-tour="mobile-sidebar-toggle"
+              aria-expanded={isMobileOpen}
+              aria-label={isMobileOpen ? "Close navigation" : "Open navigation"}
+              onClick={toggleMobileSidebar}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-teal-200/60 bg-white text-teal-600 shadow-sm hover:bg-teal-50 dark:border-teal-800/50 dark:bg-gray-900 dark:text-teal-400 dark:hover:bg-teal-500/15"
+            >
+              <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {isMobileOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m6 6 12 12M18 6 6 18" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+            <Link to="/" className="flex min-w-0 flex-1 items-center">
+              {displayName ? (
+                <span className="truncate text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+                  {displayName}
+                </span>
+              ) : (
+                <>
+                  <img className="dark:hidden" src="./images/logo/logo.svg" alt="Logo" />
+                  <img className="hidden dark:block" src="./images/logo/logo-dark.svg" alt="Logo" />
+                </>
+              )}
+            </Link>
+          </div>
 
           <button
             onClick={toggleApplicationMenu}
@@ -146,8 +163,7 @@ const AppHeader: React.FC = () => {
           } flex-col w-full gap-4 px-5 py-4 lg:flex lg:flex-row lg:items-center lg:justify-end lg:gap-3 lg:px-0`}
         >
           <GlobalSearch isSuperadmin={isSuperadmin} className="w-full lg:hidden" />
-          <div className="flex items-center justify-between w-full gap-3 lg:w-auto lg:justify-end">
-            <ThemeToggleButton />
+          <div className="flex w-full items-center justify-end gap-3 lg:w-auto">
             <UserDropdown />
           </div>
         </div>

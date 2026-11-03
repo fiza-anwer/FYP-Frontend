@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { HTMLAttributes } from "react";
 
 /**
  * Sticks below the app header while the page scrolls so filters/actions stay reachable.
@@ -7,12 +7,11 @@ import type { ReactNode } from "react";
 export default function StickyToolbar({
   children,
   className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+  ...props
+}: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
+      {...props}
       className={`sticky top-14 z-40 -mx-1 border-b border-gray-200/90 bg-white/95 px-1 py-2 backdrop-blur-md dark:border-gray-800 dark:bg-gray-900/95 sm:top-16 lg:top-[4.55rem] ${className}`}
     >
       {children}

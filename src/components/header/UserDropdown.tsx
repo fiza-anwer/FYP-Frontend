@@ -123,6 +123,20 @@ export default function UserDropdown() {
 
         <button
           type="button"
+          onClick={() => {
+            closeDropdown();
+            navigate("/settings");
+          }}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-theme-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5"
+        >
+          <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zM19.4 15a1.7 1.7 0 00.34 1.88l.06.06-1.7 2.94-.08-.03a1.7 1.7 0 00-1.84.34l-.06.06h-3.4l-.03-.08a1.7 1.7 0 00-1.53-1.05 1.7 1.7 0 00-.31.03l-.08.02-2.94-1.7.03-.08a1.7 1.7 0 00-.34-1.84l-.06-.06v-3.4l.08-.03a1.7 1.7 0 001.02-1.84l-.02-.08 1.7-2.94.08.03a1.7 1.7 0 001.84-.34l.06-.06h3.4l.03.08a1.7 1.7 0 001.84 1.02l.08-.02 2.94 1.7-.03.08a1.7 1.7 0 00.34 1.84l.06.06v3.4l-.08.03A1.7 1.7 0 0019.4 15z" />
+          </svg>
+          Settings
+        </button>
+
+        <button
+          type="button"
           onClick={handleSignOut}
           className="mt-2 flex w-full items-center gap-3 border-t border-gray-200 px-3 pt-3 pb-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:border-gray-800 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
         >

@@ -179,7 +179,7 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
   const checklistComplete = completedChecklistItems === checklist.length;
 
   return (
-    <div className="space-y-6 pb-6">
+    <div className="space-y-6 pb-6" data-tour="dashboard-overview">
       {/* Welcome + KPI — Skydash / Star Admin style */}
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         <div className="relative overflow-hidden rounded-xl border border-gray-100 bg-white p-6 shadow-[0_2px_20px_rgba(0,0,0,0.06)] dark:border-gray-800 dark:bg-gray-900 xl:col-span-5">

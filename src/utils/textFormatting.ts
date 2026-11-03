@@ -21,3 +21,17 @@ export function formatSku(value?: string | null): string {
   const sku = (value ?? "").trim();
   return sku.toLocaleLowerCase() === "other" ? "Other" : sku;
 }
+
+export function formatSkuPreview(value?: string | null, maxLength = 15): string {
+  const sku = (value ?? "").trim();
+  return sku.length > maxLength ? `${sku.slice(0, maxLength)}...` : sku || "—";
+}
+
+export function formatProductNamePreview(value?: string | null, maxWords = 4): string {
+  const title = (value ?? "").trim().replace(/\s+/g, " ");
+  if (!title) return "—";
+
+  const words = title.split(" ");
+  if (words.length > maxWords) return `${words.slice(0, maxWords).join(" ")}...`;
+  return title.length > 24 ? `${title.slice(0, 24)}...` : title;
+}
