@@ -186,7 +186,35 @@ layer(base);
     cursor: pointer;
   }
   body {
-    @apply relative font-normal font-outfit z-1 bg-gray-50;
+    @apply relative font-normal font-outfit z-1 bg-gray-50 text-gray-900 dark:bg-black dark:text-white;
+    font-family: var(--app-font-family, var(--font-outfit));
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--app-font-family, var(--font-outfit));
+    font-size: var(--app-heading-font-size, 24px) !important;
+  }
+  body :is(p, span, a, button, input, select, textarea, label, li, td, th, small, strong, em, code, option, legend, blockquote, dd, dt):not(h1 *):not(h2 *):not(h3 *):not(h4 *):not(h5 *):not(h6 *) {
+    font-family: var(--app-font-family, var(--font-outfit));
+    font-size: var(--app-text-font-size, 14px) !important;
+  }
+}
+
+.sidebar-expanded-width {
+  width: min(var(--expanded-sidebar-width, 320px), calc(100vw - 48px));
+}
+
+@media (min-width: 1024px) {
+  .sidebar-expanded-width {
+    width: var(--expanded-sidebar-width, 320px);
+  }
+
+  .sidebar-content-offset {
+    margin-left: var(--expanded-sidebar-width, 320px);
   }
 }
 

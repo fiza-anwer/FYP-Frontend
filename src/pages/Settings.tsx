@@ -19,7 +19,7 @@ export default function Settings() {
           <span>
             <span className="block font-medium text-gray-900 dark:text-white">Appearance</span>
             <span className="mt-1 block text-sm text-gray-600 dark:text-gray-400">
-              Choose a light or dark color theme.
+              Choose a color mode and accent palette, and customize fonts and text sizes.
             </span>
           </span>
           <svg className="h-5 w-5 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

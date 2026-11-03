@@ -24,6 +24,7 @@ const MyProfile = lazy(() => import("./pages/MyProfile"));
 const HelpSupport = lazy(() => import("./pages/HelpSupport"));
 const Settings = lazy(() => import("./pages/Settings"));
 const AppearanceSettings = lazy(() => import("./pages/Settings/Appearance"));
+const FontSettings = lazy(() => import("./pages/Settings/Fonts"));
 const EmailChangeAction = lazy(() => import("./pages/EmailChangeAction"));
 const SuperadminTenants = lazy(() => import("./pages/Superadmin/Tenants"));
 
@@ -63,6 +64,7 @@ function AppRoutes() {
             <Route path="/help-support" element={<HelpSupport />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/settings/appearance" element={<AppearanceSettings />} />
+            <Route path="/settings/appearance/fonts" element={<FontSettings />} />
             <Route path="/superadmin/tenants" element={<SuperadminTenants />} />
           </Route>
         </Route>

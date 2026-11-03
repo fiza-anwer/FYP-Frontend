@@ -13,6 +13,7 @@ export const tenantSearchPages: SearchPage[] = [
   { name: "Help & support", path: "/help-support", group: "Help", keywords: "guide support faq" },
   { name: "Settings", path: "/settings", group: "Settings", keywords: "preferences configuration" },
   { name: "Appearance", path: "/settings/appearance", group: "Settings", keywords: "theme light dark display" },
+  { name: "Fonts", path: "/settings/appearance/fonts", group: "Settings", keywords: "font typography text appearance" },
 ];
 
 export const superadminSearchPages: SearchPage[] = [
