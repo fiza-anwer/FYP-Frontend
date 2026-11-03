@@ -8,7 +8,7 @@ const Backdrop: React.FC = () => {
   return (
     <button
       type="button"
-      className="fixed inset-x-0 bottom-0 top-[76px] z-40 cursor-default bg-gray-900/50 lg:hidden"
+      className="fixed inset-x-0 bottom-0 top-[76px] z-40 cursor-default bg-gray-950/75 lg:hidden"
       aria-label="Close navigation"
       onClick={closeMobileSidebar}
     />

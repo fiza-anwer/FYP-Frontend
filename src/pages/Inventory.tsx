@@ -562,6 +562,7 @@ export default function Inventory() {
           mobileCards
           selectedIds={selectedRowIds}
           onSelectionChange={setSelectedRowIds}
+          onRowClick={openAdjust}
           onRowDoubleClick={(row) => openAdjust(row)}
         />
       </div>

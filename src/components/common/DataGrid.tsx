@@ -21,6 +21,8 @@ type DataGridProps<T> = {
   onSelectionChange?: (ids: string[]) => void;
   /** Double-click a data row (not the checkbox cell) */
   onRowDoubleClick?: (row: T) => void;
+  /** Single-click a mobile card to open or select the row. */
+  onRowClick?: (row: T) => void;
   /** Render each row as a stacked card on small screens instead of a clipped table. */
   mobileCards?: boolean;
 };
@@ -41,6 +43,7 @@ function DataGrid<T>({
   selectedIds = [],
   onSelectionChange,
   onRowDoubleClick,
+  onRowClick,
   mobileCards = false,
 }: DataGridProps<T>) {
   const set = new Set(selectedIds);
@@ -80,8 +83,14 @@ function DataGrid<T>({
               return (
                 <article
                   key={rowKey}
+                  onClick={(event) => {
+                    if (event.target instanceof Element && event.target.closest("button,input,a,select,textarea")) return;
+                    onRowClick?.(row);
+                  }}
                   onDoubleClick={() => onRowDoubleClick?.(row)}
-                  className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/60"
+                  className={`rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/60 ${
+                    onRowClick ? "cursor-pointer active:bg-gray-50 dark:active:bg-gray-800" : ""
+                  }`}
                 >
                   <div className="flex min-w-0 items-start gap-3">
                     {selectable && (
@@ -90,6 +99,7 @@ function DataGrid<T>({
                         aria-label={`Select row ${index + 1}`}
                         checked={set.has(id)}
                         onChange={() => toggleOne(id)}
+                        onClick={(event) => event.stopPropagation()}
                         className="mt-1 shrink-0 rounded border-gray-300 dark:border-gray-600"
                       />
                     )}

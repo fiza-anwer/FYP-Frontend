@@ -60,7 +60,7 @@ const AppHeader: React.FC = () => {
   return (
     <header className="sticky top-0 flex w-full bg-white border-gray-200 z-99999 dark:border-gray-800 dark:bg-gray-900 lg:border-b">
       <div className="flex flex-col items-center justify-between grow lg:flex-row lg:px-6">
-        <div className="flex items-center justify-between w-full gap-2 px-3 py-3 border-b border-gray-200 dark:border-gray-800 sm:gap-4 lg:justify-normal lg:border-b-0 lg:px-0 lg:py-4">
+        <div className="relative flex items-center justify-between w-full gap-2 px-3 py-3 border-b border-gray-200 dark:border-gray-800 sm:gap-4 lg:justify-normal lg:border-b-0 lg:px-0 lg:py-4">
           <button
             className="hidden"
             onClick={handleToggle}
@@ -100,14 +100,14 @@ const AppHeader: React.FC = () => {
             {/* Cross Icon */}
           </button>
 
-          <div className="flex min-w-0 flex-1 items-center gap-2 lg:hidden">
+          <div className="pointer-events-none absolute inset-x-3 flex min-w-0 items-center justify-center lg:hidden">
             <button
               type="button"
               data-tour="mobile-sidebar-toggle"
               aria-expanded={isMobileOpen}
               aria-label={isMobileOpen ? "Close navigation" : "Open navigation"}
               onClick={toggleMobileSidebar}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-teal-200/60 bg-white text-teal-600 shadow-sm hover:bg-teal-50 dark:border-teal-800/50 dark:bg-gray-900 dark:text-teal-400 dark:hover:bg-teal-500/15"
+              className="pointer-events-auto absolute left-0 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-teal-200/60 bg-white text-teal-600 shadow-sm hover:bg-teal-50 dark:border-teal-800/50 dark:bg-gray-900 dark:text-teal-400 dark:hover:bg-teal-500/15"
             >
               <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {isMobileOpen ? (
@@ -117,9 +117,9 @@ const AppHeader: React.FC = () => {
                 )}
               </svg>
             </button>
-            <Link to="/" className="flex min-w-0 flex-1 items-center">
+            <Link to="/" className="pointer-events-auto absolute left-1/2 flex max-w-[calc(100vw-140px)] -translate-x-1/2 items-center justify-center">
               {displayName ? (
-                <span className="truncate text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+                <span className="truncate text-center text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
                   {displayName}
                 </span>
               ) : (
@@ -132,8 +132,11 @@ const AppHeader: React.FC = () => {
           </div>
 
           <button
+            type="button"
             onClick={toggleApplicationMenu}
-            className="flex items-center justify-center w-10 h-10 text-sky-500 rounded-xl z-99999 hover:bg-sky-50 hover:text-sky-600 dark:text-sky-400 dark:hover:bg-sky-500/15 lg:hidden"
+            aria-expanded={isApplicationMenuOpen}
+            aria-label={isApplicationMenuOpen ? "Close account menu" : "Open account menu"}
+            className="z-99999 ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sky-500 hover:bg-sky-50 hover:text-sky-600 dark:text-sky-400 dark:hover:bg-sky-500/15 lg:hidden"
           >
             <svg
               width="24"

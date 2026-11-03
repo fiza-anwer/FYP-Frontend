@@ -106,7 +106,7 @@ export function ProductNameCell({
   const displayTitle = title?.trim() || "—";
   return (
     <span className={`inline-flex min-w-0 max-w-full items-center gap-1.5 ${className ?? ""}`}>
-      <span className="block max-w-full whitespace-normal break-words sm:hidden" title={displayTitle}>
+      <span className="block min-w-0 max-w-full truncate whitespace-nowrap sm:hidden" title={displayTitle}>
         {displayTitle}
       </span>
       <span className="hidden max-w-[280px] truncate sm:block" title={displayTitle}>

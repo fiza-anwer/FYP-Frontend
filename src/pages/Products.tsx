@@ -1502,6 +1502,7 @@ export default function Products() {
                 mobileCards
                 selectedIds={selectedRowIds}
                 onSelectionChange={setSelectedRowIds}
+                onRowClick={(row) => openEdit(row.product, row.variantIndex)}
                 onRowDoubleClick={(row) => openEdit(row.product, row.variantIndex)}
               />
             </div>
