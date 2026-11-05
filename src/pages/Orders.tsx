@@ -5,7 +5,7 @@ import PageMeta from "../components/common/PageMeta";
 import StickyToolbar from "../components/common/StickyToolbar";
 import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
 import { tenantApi, type Order, type Company, type Consignment, type CarrierIntegration, type CarrierIntegrationService } from "../api/client";
-import { OrderChannelCell, OrderSyncStatus } from "../components/common/ChannelSyncStatus";
+import { OrderPlatformLogos } from "../components/common/ChannelSyncStatus";
 import Label from "../components/form/Label";
 
 function formatDate(d: string) {
@@ -31,9 +31,8 @@ type OrderWithConsignment = Order & { _consignment?: Consignment | null };
 
 function buildColumns(): DataGridColumn<OrderWithConsignment>[] {
   return [
-    { key: "channel", label: "Company", render: (_, row) => <OrderChannelCell order={row} /> },
+    { key: "platform", label: "Platform", render: (_, row) => <OrderPlatformLogos order={row} /> },
     { key: "order_status", label: "Order status", render: (_, row) => statusBadge(row.status) },
-    { key: "sync_status", label: "Status", render: (_, row) => <OrderSyncStatus order={row} /> },
     { key: "order_number", label: "Order #", render: (v) => <span className="font-medium text-gray-900 dark:text-white">{String(v ?? "—")}</span> },
     { key: "email", label: "Email" },
     {
@@ -94,6 +93,7 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
+  const [platformFilter, setPlatformFilter] = useState("");
   const [includeDispatched, setIncludeDispatched] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [backfillCompanyId, setBackfillCompanyId] = useState("");
@@ -158,7 +158,14 @@ export default function Orders() {
   const ordersFilteredByCompany = companyFilter
     ? allOrders.filter((o) => o.company_id === companyFilter)
     : allOrders;
-  const ordersFilteredByStatus = ordersFilteredByCompany.filter((o) => statusFilter.includes(o.status));
+  const ordersFilteredByPlatform = ordersFilteredByCompany.filter((o) => {
+    const source = (o.source || "local").toLowerCase();
+    if (platformFilter === "both") return source === "shopify" || source === "daraz";
+    if (platformFilter === "shopify" || platformFilter === "daraz") return source === platformFilter;
+    if (platformFilter === "local") return source === "local";
+    return true;
+  });
+  const ordersFilteredByStatus = ordersFilteredByPlatform.filter((o) => statusFilter.includes(o.status));
   const ordersFilteredBySearch = useMemo(() => {
     if (!headerSearch) return ordersFilteredByStatus;
     const q = headerSearch.toLowerCase();
@@ -325,6 +332,18 @@ export default function Orders() {
                 {c.name}
               </option>
             ))}
+          </select>
+          <select
+            value={platformFilter}
+            onChange={(e) => setPlatformFilter(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white min-w-[160px]"
+            aria-label="Filter by platform"
+          >
+            <option value="">All platforms</option>
+            <option value="both">Both (Shopify + Daraz)</option>
+            <option value="shopify">Shopify</option>
+            <option value="daraz">Daraz</option>
+            <option value="local">Local only</option>
           </select>
           <select
             value={orderSort}

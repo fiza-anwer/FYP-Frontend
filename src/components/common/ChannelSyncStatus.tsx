@@ -319,6 +319,20 @@ export function ProductPlatformLogos({
   );
 }
 
+export function OrderPlatformLogos({ order }: { order: Order }) {
+  const channel = getOrderChannel(order);
+  if (!channel) return <span className="text-xs text-gray-400">—</span>;
+
+  return (
+    <div className="flex flex-nowrap items-center gap-2">
+      <PlatformLogoChip
+        slug={channel}
+        state={isOrderSynced(order) ? "synced" : "pending"}
+      />
+    </div>
+  );
+}
+
 export function OrderChannelCell({ order }: { order: Order }) {
   return <ChannelCell channel={order.source} />;
 }
