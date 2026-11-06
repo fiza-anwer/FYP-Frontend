@@ -298,7 +298,7 @@ const AppSidebar: React.FC = () => {
       data-tour="sidebar-navigation"
       className={`fixed top-[76px] left-0 z-50 flex h-[calc(100dvh-76px)] flex-col border-r border-gray-200 bg-white px-5 text-gray-900 transition-all duration-300 ease-in-out dark:border-gray-800 dark:bg-gray-900 lg:top-0 lg:h-screen
         ${
-          isExpanded || isMobileOpen ? "sidebar-expanded-width" : "w-[5.625rem]"
+          isExpanded || isMobileOpen ? "sidebar-expanded-width" : "w-[85px]"
         }
         ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
         lg:translate-x-0`}
