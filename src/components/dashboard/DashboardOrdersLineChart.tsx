@@ -5,7 +5,11 @@ type Point = { date: string; count: number };
 
 export default function DashboardOrdersLineChart({ data }: { data: Point[] }) {
   const categories = data.map((d) => {
-    const dt = new Date(d.date + "T12:00:00");
+    const isMonth = /^\d{4}-\d{2}$/.test(d.date);
+    const dt = new Date(`${d.date}${isMonth ? "-01" : ""}T12:00:00`);
+    if (isMonth) {
+      return dt.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+    }
     return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   });
   const counts = data.map((d) => d.count);

@@ -197,6 +197,12 @@ export type DashboardAnalytics = {
     orders_last_30_days: number;
     revenue_this_month: number;
   };
+  range_summary?: {
+    total_orders: number;
+    total_revenue: number;
+    average_order_value: number;
+  };
+  orders_in_range?: Order[];
 };
 
 export type Order = {
@@ -208,6 +214,7 @@ export type Order = {
   order_number?: string | number;
   email?: string;
   total?: number;
+  currency?: string;
   financial_status?: string;
   fulfillment_status?: string;
   source?: string;
@@ -393,7 +400,14 @@ export const authApi = {
 
 // Tenant API
 export const tenantApi = {
-  getDashboardAnalytics: () => api<DashboardAnalytics>("/api/tenant/dashboard/analytics"),
+  getDashboardAnalytics: (params?: { start_date?: string; end_date?: string; include_orders?: boolean }) => {
+    const search = new URLSearchParams();
+    if (params?.start_date) search.set("start_date", params.start_date);
+    if (params?.end_date) search.set("end_date", params.end_date);
+    if (params?.include_orders) search.set("include_orders", "true");
+    const query = search.toString();
+    return api<DashboardAnalytics>(`/api/tenant/dashboard/analytics${query ? `?${query}` : ""}`);
+  },
   getCompanies: () =>
     api<{ companies: Company[] }>("/api/tenant/companies"),
   createCompany: (body: { name: string; address1?: string; city?: string; postal_code?: string; country_code?: string }) =>
@@ -620,6 +634,26 @@ export const tenantApi = {
       inventory_synced: number;
       errors: Array<{ scope: string; error: string; product_id?: string; channel?: string }>;
     }>("/api/tenant/sync", { method: "POST" }),
+  getSyncStatus: () =>
+    api<{
+      status: null | {
+        running: boolean;
+        phase: string;
+        progress: number;
+        started_at: number;
+        updated_at: number;
+        products_pushed: number;
+        products_pushed_daraz: number;
+        products_fetched: number;
+        products_imported: number;
+        products_updated: number;
+        orders_fetched: number;
+        orders_imported: number;
+        orders_updated: number;
+        inventory_synced: number;
+        errors: Array<{ scope: string; error: string }>;
+      };
+    }>("/api/tenant/sync/status"),
   patchInventory: (productId: string, body: { quantity: number }) =>
     api<{ quantity: number; allocated: number }>(`/api/tenant/inventory/${productId}`, {
       method: "PATCH",

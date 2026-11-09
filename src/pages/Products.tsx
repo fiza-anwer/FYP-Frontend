@@ -127,6 +127,7 @@ export default function Products() {
   const [companyFilter, setCompanyFilter] = useState("");
   const [platformFilter, setPlatformFilter] = useState("");
   const [retryingKey, setRetryingKey] = useState<string | null>(null);
+  const [toolbarPushInProgress, setToolbarPushInProgress] = useState<"Shopify" | "Daraz" | null>(null);
   const [failedSyncKeys, setFailedSyncKeys] = useState<Set<string>>(() => new Set());
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
   const [listingChoiceOpen, setListingChoiceOpen] = useState(false);
@@ -613,6 +614,7 @@ export default function Products() {
     if (!selectedProduct || !canPushShopify) return;
     setError("");
     setSyncWarning(null);
+    setToolbarPushInProgress("Shopify");
     try {
       const data = (await tenantApi.pushProductToShopify(selectedProduct.id)) as Product & {
         category_warning?: string;
@@ -626,6 +628,8 @@ export default function Products() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Push to Shopify failed.");
+    } finally {
+      setToolbarPushInProgress(null);
     }
   };
 
@@ -639,6 +643,7 @@ export default function Products() {
       setError(imgErr);
       return;
     }
+    setToolbarPushInProgress("Daraz");
     try {
       const data = await tenantApi.pushProductToDaraz(selectedProduct.id);
       setSyncWarning(data?.message || "Pushed to Daraz.");
@@ -646,6 +651,8 @@ export default function Products() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Push to Daraz failed.");
+    } finally {
+      setToolbarPushInProgress(null);
     }
   };
 
@@ -842,6 +849,10 @@ export default function Products() {
     failedSyncKeys,
   ]);
 
+  const activePushPlatform =
+    toolbarPushInProgress ??
+    (retryingKey?.endsWith(":shopify") ? "Shopify" : retryingKey?.endsWith(":daraz") ? "Daraz" : null);
+
   return (
     <div>
       <PageMeta
@@ -876,6 +887,22 @@ export default function Products() {
             >
               Dismiss
             </button>
+          </div>
+        )}
+        {activePushPlatform && (
+          <div
+            className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-200"
+            role="status"
+            aria-live="polite"
+          >
+            Publishing product to {activePushPlatform}…
+            <div
+              className="mt-2 h-2 overflow-hidden rounded-full bg-sky-200 dark:bg-sky-950"
+              role="progressbar"
+              aria-label={`Publishing product to ${activePushPlatform}`}
+            >
+              <div className="h-full w-1/3 animate-pulse rounded-full bg-sky-600 dark:bg-sky-400" />
+            </div>
           </div>
         )}
 
@@ -1356,8 +1383,8 @@ export default function Products() {
           </div>
         ) : (
           <>
-            <StickyToolbar className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-              <div className="w-full min-w-0 flex-1 sm:min-w-[200px]">
+            <StickyToolbar className="flex flex-col items-stretch gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:gap-4">
+              <div className="w-full min-w-0 flex-1 lg:min-w-[200px]">
                 <Input
                   type="search"
                   value={search}
@@ -1366,33 +1393,33 @@ export default function Products() {
                   className="rounded-lg border-gray-200 dark:border-gray-600"
                 />
               </div>
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+              <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:flex-wrap lg:items-center lg:gap-3">
                 <button
                   type="button"
                   aria-expanded={mobileToolbarOpen}
                   aria-controls="product-mobile-controls"
                   onClick={() => setMobileToolbarOpen((open) => !open)}
-                  className="flex h-11 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:hidden"
+                  className="flex h-11 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 lg:hidden"
                 >
                   <span>Filters and actions</span>
                   <span aria-hidden="true">{mobileToolbarOpen ? "−" : "+"}</span>
                 </button>
                 <div
                   id="product-mobile-controls"
-                  className={`${mobileToolbarOpen ? "grid" : "hidden"} grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3`}
+                  className={`${mobileToolbarOpen ? "grid" : "hidden"} grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:items-center lg:gap-3`}
                 >
                 <button
                   type="button"
                   onClick={handleToolbarEdit}
                   disabled={!hasSelection}
-                  className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 sm:w-auto sm:px-4"
+                  className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 lg:w-auto lg:px-4"
                 >
                   Edit
                 </button>
                 <button
                   type="button"
                   onClick={() => void handleToolbarPushShopify()}
-                  disabled={!canPushShopify}
+                  disabled={!canPushShopify || Boolean(activePushPlatform)}
                   title={
                     !hasSelection
                       ? "Select an imported Daraz (or local) product first"
@@ -1400,30 +1427,30 @@ export default function Products() {
                         ? "Already on Shopify"
                         : "Create this product on Shopify and link channels"
                   }
-                  className="h-11 w-full rounded-lg border border-emerald-200 bg-white px-3 text-sm font-medium text-emerald-700 shadow-sm hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-800 dark:bg-gray-800 dark:text-emerald-400 dark:hover:bg-emerald-900/20 sm:w-auto sm:px-4"
+                  className="h-11 w-full rounded-lg border border-emerald-200 bg-white px-3 text-sm font-medium text-emerald-700 shadow-sm hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-800 dark:bg-gray-800 dark:text-emerald-400 dark:hover:bg-emerald-900/20 lg:w-auto lg:px-4"
                 >
-                  Push to Shopify
+                  {toolbarPushInProgress === "Shopify" ? "Pushing…" : "Push to Shopify"}
                 </button>
                 <button
                   type="button"
                   onClick={() => void handleToolbarPushDaraz()}
-                  disabled={!canPushDaraz}
-                  className="h-11 w-full rounded-lg border border-orange-200 bg-white px-3 text-sm font-medium text-orange-700 shadow-sm hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-orange-800 dark:bg-gray-800 dark:text-orange-400 dark:hover:bg-orange-900/20 sm:w-auto sm:px-4"
+                  disabled={!canPushDaraz || Boolean(activePushPlatform)}
+                  className="h-11 w-full rounded-lg border border-orange-200 bg-white px-3 text-sm font-medium text-orange-700 shadow-sm hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-orange-800 dark:bg-gray-800 dark:text-orange-400 dark:hover:bg-orange-900/20 lg:w-auto lg:px-4"
                 >
-                  Push to Daraz
+                  {toolbarPushInProgress === "Daraz" ? "Pushing…" : "Push to Daraz"}
                 </button>
                 <button
                   type="button"
                   onClick={() => void handleToolbarDelete()}
                   disabled={!hasSelection}
-                  className="h-11 w-full rounded-lg border border-rose-200 bg-white px-3 text-sm font-medium text-rose-600 shadow-sm hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-rose-800 dark:bg-gray-800 dark:text-rose-400 dark:hover:bg-rose-900/20 sm:w-auto sm:px-4"
+                  className="h-11 w-full rounded-lg border border-rose-200 bg-white px-3 text-sm font-medium text-rose-600 shadow-sm hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-rose-800 dark:bg-gray-800 dark:text-rose-400 dark:hover:bg-rose-900/20 lg:w-auto lg:px-4"
                 >
                   Delete
                 </button>
                 <select
                   value={companyFilter}
                   onChange={(e) => setCompanyFilter(e.target.value)}
-                  className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
+                  className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 lg:w-auto lg:px-3"
                   aria-label="Filter by company"
                 >
                   <option value="">All companies</option>
@@ -1436,7 +1463,7 @@ export default function Products() {
                 <select
                   value={platformFilter}
                   onChange={(e) => setPlatformFilter(e.target.value)}
-                  className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
+                  className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 lg:w-auto lg:px-3"
                   aria-label="Filter by platform"
                 >
                   <option value="">All platforms</option>
@@ -1448,7 +1475,7 @@ export default function Products() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
+                  className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 lg:w-auto lg:px-3"
                 >
                   <option value="">All statuses</option>
                   <option value="active">Active</option>
@@ -1458,7 +1485,7 @@ export default function Products() {
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value)}
-                  className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
+                  className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 lg:w-auto lg:px-3"
                 >
                   <option value="">All categories</option>
                   {uniqueTypes.map((t) => (
@@ -1470,7 +1497,7 @@ export default function Products() {
                 <select
                   value={sort}
                   onChange={(e) => setSort(e.target.value as SortKey)}
-                  className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
+                  className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 lg:w-auto lg:px-3"
                 >
                   <option value="newest">Newest first</option>
                   <option value="oldest">Oldest first</option>
@@ -1484,7 +1511,7 @@ export default function Products() {
                   type="button"
                   onClick={openCreate}
                   data-tour="products-create"
-                  className="h-11 w-full rounded-lg bg-sky-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600 sm:w-auto"
+                  className="h-11 w-full rounded-lg bg-sky-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600 lg:w-auto"
                 >
                   Add product
                 </button>

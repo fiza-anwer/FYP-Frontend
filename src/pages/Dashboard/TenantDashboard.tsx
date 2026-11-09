@@ -72,6 +72,116 @@ function activityDot(status?: string) {
   return "bg-blue-500 ring-blue-100 dark:ring-blue-900/50";
 }
 
+function formatInputDate(date: Date) {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 10);
+}
+
+function formatReportDate(value: string) {
+  const date = new Date(`${value}T12:00:00`);
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function DateRangeControls({
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
+  onClear,
+}: {
+  startDate: string;
+  endDate: string;
+  onStartDateChange: (value: string) => void;
+  onEndDateChange: (value: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="grid w-full max-w-[360px] min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
+      <label className="flex min-w-0 flex-col gap-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+        From
+        <input
+          aria-label="Report start date"
+          className="w-full min-w-0 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+          type="date"
+          value={startDate}
+          onChange={(event) => onStartDateChange(event.target.value)}
+        />
+      </label>
+      <label className="flex min-w-0 flex-col gap-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+        To
+        <input
+          aria-label="Report end date"
+          className="w-full min-w-0 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+          type="date"
+          value={endDate}
+          onChange={(event) => onEndDateChange(event.target.value)}
+        />
+      </label>
+      {(startDate || endDate) && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="pb-1.5 text-xs font-medium text-violet-600 hover:text-violet-700 dark:text-violet-400"
+        >
+          Clear
+        </button>
+      )}
+    </div>
+  );
+}
+
+function useDateRangeAnalytics(startDate: string, endDate: string) {
+  const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const hasSelection = Boolean(startDate || endDate);
+  const hasValidRange = Boolean(startDate && endDate && startDate <= endDate);
+  const invalidRange = Boolean(startDate && endDate && startDate > endDate);
+
+  useEffect(() => {
+    if (!hasSelection) {
+      setAnalytics(null);
+      setLoading(false);
+      setError("");
+      return;
+    }
+    if (invalidRange || !hasValidRange) {
+      setAnalytics(null);
+      setLoading(false);
+      setError(
+        invalidRange
+          ? "The start date must be on or before the end date."
+          : "Choose both a start date and an end date.",
+      );
+      return;
+    }
+
+    let cancelled = false;
+    setAnalytics(null);
+    setLoading(true);
+    setError("");
+    tenantApi.getDashboardAnalytics({ start_date: startDate, end_date: endDate })
+      .then((result) => {
+        if (!cancelled) setAnalytics(result);
+      })
+      .catch((requestError: unknown) => {
+        if (!cancelled) {
+          setAnalytics(null);
+          setError(requestError instanceof Error ? requestError.message : "Could not load reports for this date range.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasSelection, hasValidRange, invalidRange, startDate, endDate]);
+
+  return { analytics, loading, error, hasSelection, hasValidRange, invalidRange };
+}
+
 function StatPill({ label, value, accent }: { label: string; value: string | number; accent: string }) {
   return (
     <div className="rounded-lg border border-gray-100 bg-gray-50/80 px-4 py-3 dark:border-gray-800 dark:bg-gray-800/50">
@@ -120,6 +230,18 @@ function FeaturedHero({
 
 export default function TenantDashboard({ data }: { data: DashboardAnalytics }) {
   const [showAllStaleProducts, setShowAllStaleProducts] = useState(false);
+  const [ordersRangeStart, setOrdersRangeStart] = useState("");
+  const [ordersRangeEnd, setOrdersRangeEnd] = useState("");
+  const [revenueRangeStart, setRevenueRangeStart] = useState("");
+  const [revenueRangeEnd, setRevenueRangeEnd] = useState("");
+  const ordersRange = useDateRangeAnalytics(ordersRangeStart, ordersRangeEnd);
+  const revenueRange = useDateRangeAnalytics(revenueRangeStart, revenueRangeEnd);
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState("");
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState("");
+  const [exportEndDate, setExportEndDate] = useState("");
+  const [exportDialogError, setExportDialogError] = useState("");
   const { user } = useAuth();
   const checklistStorageKey = `unisell:onboarding:${(user?.tenant_name || user?.email || user?.username || "account").toLowerCase()}:checklist-dismissed`;
   const { summary } = data;
@@ -133,6 +255,66 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
   const revenueSpark = data.revenue_by_month.slice(-10).map((m) => m.revenue);
   const maxTop = Math.max(1, ...data.top_products.map((p) => p.order_count));
   const orders30Sum = data.orders_by_day.reduce((s, d) => s + d.count, 0);
+  const displayedOrders = ordersRange.hasValidRange
+    ? ordersRange.analytics?.range_summary?.total_orders ?? "—"
+    : orders30Sum;
+  const displayedRevenue = ordersRange.hasValidRange
+    ? ordersRange.analytics?.range_summary?.total_revenue ?? "—"
+    : summary.revenue_this_month;
+
+  const openReportDialog = () => {
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - 29);
+    setExportStartDate(formatInputDate(start));
+    setExportEndDate(formatInputDate(end));
+    setExportDialogError("");
+    setExportMessage("");
+    setExportDialogOpen(true);
+  };
+
+  const downloadReport = async () => {
+    if (!exportStartDate || !exportEndDate || exportStartDate > exportEndDate) {
+      setExportDialogError("Choose a valid start and end date before generating the report.");
+      return;
+    }
+    const startDate = exportStartDate;
+    const endDate = exportEndDate;
+    setExporting(true);
+    setExportDialogError("");
+    setExportMessage("");
+    try {
+      const { createDashboardReportWorkbook } = await import("../../utils/dashboardReportWorkbook");
+      const report = await tenantApi.getDashboardAnalytics({
+        start_date: startDate,
+        end_date: endDate,
+        include_orders: true,
+      });
+      const workbook = await createDashboardReportWorkbook(report, startDate, endDate);
+      const url = URL.createObjectURL(workbook);
+      const link = document.createElement("a");
+      link.href = url;
+      const companyName = String(user?.company_name ?? user?.tenant_name ?? "Company")
+        .trim()
+        .replace(/[<>:"/\\|?*]/g, "")
+        .split("")
+        .filter((character) => character.charCodeAt(0) >= 32)
+        .join("")
+        .replace(/\s+/g, "-")
+        .replace(/[. -]+$/g, "") || "Company";
+      link.download = `${companyName}-report-${startDate}-to-${endDate}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setExportDialogOpen(false);
+      setExportMessage(`Excel report downloaded for ${formatReportDate(startDate)} – ${formatReportDate(endDate)}.`);
+    } catch (error) {
+      setExportDialogError(error instanceof Error ? `Excel export failed: ${error.message}` : "Excel export failed.");
+    } finally {
+      setExporting(false);
+    }
+  };
   const [activeIntegration, setActiveIntegration] = useState<boolean | null>(null);
   const [processedOrder, setProcessedOrder] = useState<boolean | null>(null);
   const [integrationError, setIntegrationError] = useState("");
@@ -193,7 +375,22 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
               <circle cx="88" cy="38" r="14" fill="#f43f5e" opacity="0.85" />
             </svg>
           </div>
-          <p className="text-sm font-medium text-violet-600 dark:text-violet-400">{today}</p>
+          <div className="relative flex items-center justify-between gap-3">
+            <p className="text-sm font-medium text-violet-600 dark:text-violet-400">{today}</p>
+            <button
+              type="button"
+              onClick={openReportDialog}
+              disabled={exporting}
+              title="Choose a date range and download a multi-sheet Excel report"
+              className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-white/90 px-3 py-2 text-xs font-semibold text-violet-700 shadow-sm transition hover:bg-violet-50 disabled:cursor-wait disabled:opacity-60 dark:border-violet-800 dark:bg-gray-900/80 dark:text-violet-300 dark:hover:bg-violet-950/40 sm:text-sm"
+            >
+              <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <path d="m7 10 5 5 5-5M12 15V3" />
+              </svg>
+              Download Excel
+            </button>
+          </div>
           <h1 className="mt-2 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
             Welcome back, {displayName}
           </h1>
@@ -215,6 +412,11 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
               View products
             </Link>
           </div>
+          {exportMessage && (
+            <p className="relative mt-3 text-xs text-emerald-700 dark:text-emerald-400" role="status">
+              {exportMessage}
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:col-span-7">
@@ -327,18 +529,55 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
       {/* Summary chart + Top selling — Star Admin layout */}
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         <div className="xl:col-span-8">
-          <DashboardPanel title="Order summary" subtitle="Daily orders — last 30 days">
+          <DashboardPanel
+            title="Order summary"
+            subtitle={ordersRange.hasValidRange ? `${formatReportDate(ordersRangeStart)} – ${formatReportDate(ordersRangeEnd)}` : "Daily orders — last 30 days"}
+            headerExtra={
+              <DateRangeControls
+                startDate={ordersRangeStart}
+                endDate={ordersRangeEnd}
+                onStartDateChange={setOrdersRangeStart}
+                onEndDateChange={setOrdersRangeEnd}
+                onClear={() => {
+                  setOrdersRangeStart("");
+                  setOrdersRangeEnd("");
+                }}
+              />
+            }
+          >
             <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <StatPill label="30-day orders" value={orders30Sum} accent="text-rose-500" />
-              <StatPill label="This month $" value={formatMoney(summary.revenue_this_month)} accent="text-emerald-600" />
+              <StatPill label={ordersRange.hasValidRange ? "Orders in range" : "30-day orders"} value={displayedOrders} accent="text-rose-500" />
+              <StatPill
+                label={ordersRange.hasValidRange ? "Revenue in range" : "This month $"}
+                value={typeof displayedRevenue === "number" ? formatMoney(displayedRevenue) : displayedRevenue}
+                accent="text-emerald-600"
+              />
               <StatPill label="Total orders" value={summary.total_orders} accent="text-violet-600" />
               <StatPill label="Slow movers" value={data.stale_products.length} accent="text-amber-600" />
             </div>
-            <Suspense fallback={<div className="h-[300px] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" role="status"><span className="sr-only">Loading chart...</span></div>}>
-              <DeferredChart>
-                <DashboardOrdersLineChart data={data.orders_by_day} />
-              </DeferredChart>
-            </Suspense>
+            {ordersRange.hasSelection && !ordersRange.hasValidRange ? (
+              <p className="mb-3 text-center text-sm text-red-600 dark:text-red-400" role="alert">{ordersRange.error}</p>
+            ) : null}
+            {ordersRange.hasValidRange && !ordersRange.analytics ? (
+              <p className={`py-8 text-center text-sm ${ordersRange.error ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`} role={ordersRange.error ? "alert" : "status"}>
+                {ordersRange.error || (ordersRange.loading ? "Loading orders for this date range..." : "No report data available.")}
+              </p>
+            ) : (
+              !ordersRange.hasSelection && (
+                <Suspense fallback={<div className="h-[300px] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" role="status"><span className="sr-only">Loading chart...</span></div>}>
+                  <DeferredChart>
+                    <DashboardOrdersLineChart data={ordersRange.analytics?.orders_by_day ?? data.orders_by_day} />
+                  </DeferredChart>
+                </Suspense>
+              )
+            )}
+            {ordersRange.hasValidRange && ordersRange.analytics && (
+              <Suspense fallback={<div className="h-[300px] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" role="status"><span className="sr-only">Loading chart...</span></div>}>
+                <DeferredChart>
+                  <DashboardOrdersLineChart data={ordersRange.analytics.orders_by_day} />
+                </DeferredChart>
+              </Suspense>
+            )}
           </DashboardPanel>
         </div>
 
@@ -391,12 +630,45 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
       {/* Revenue + Activity */}
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         <div className="xl:col-span-8">
-          <DashboardPanel title="Revenue report" subtitle="Monthly revenue — last 12 months">
-            <Suspense fallback={<div className="h-[300px] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" role="status"><span className="sr-only">Loading chart...</span></div>}>
-              <DeferredChart>
-                <DashboardRevenueBarChart data={data.revenue_by_month} />
-              </DeferredChart>
-            </Suspense>
+          <DashboardPanel
+            title="Revenue report"
+            subtitle={revenueRange.hasValidRange ? `${formatReportDate(revenueRangeStart)} – ${formatReportDate(revenueRangeEnd)}` : "Monthly revenue — last 12 months"}
+            headerExtra={
+              <DateRangeControls
+                startDate={revenueRangeStart}
+                endDate={revenueRangeEnd}
+                onStartDateChange={setRevenueRangeStart}
+                onEndDateChange={setRevenueRangeEnd}
+                onClear={() => {
+                  setRevenueRangeStart("");
+                  setRevenueRangeEnd("");
+                }}
+              />
+            }
+          >
+            {revenueRange.hasSelection && !revenueRange.hasValidRange ? (
+              <p className="mb-3 text-center text-sm text-red-600 dark:text-red-400" role="alert">{revenueRange.error}</p>
+            ) : null}
+            {revenueRange.hasValidRange && !revenueRange.analytics ? (
+              <p className={`py-8 text-center text-sm ${revenueRange.error ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`} role={revenueRange.error ? "alert" : "status"}>
+                {revenueRange.error || (revenueRange.loading ? "Loading revenue for this date range..." : "No report data available.")}
+              </p>
+            ) : (
+              !revenueRange.hasSelection && (
+                <Suspense fallback={<div className="h-[300px] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" role="status"><span className="sr-only">Loading chart...</span></div>}>
+                  <DeferredChart>
+                    <DashboardRevenueBarChart data={data.revenue_by_month} />
+                  </DeferredChart>
+                </Suspense>
+              )
+            )}
+            {revenueRange.hasValidRange && revenueRange.analytics && (
+              <Suspense fallback={<div className="h-[300px] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" role="status"><span className="sr-only">Loading chart...</span></div>}>
+                <DeferredChart>
+                  <DashboardRevenueBarChart data={revenueRange.analytics.revenue_by_month} />
+                </DeferredChart>
+              </Suspense>
+            )}
           </DashboardPanel>
         </div>
 
@@ -513,6 +785,88 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
           </div>
         )}
       </DashboardPanel>
+      {exportDialogOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !exporting) setExportDialogOpen(false);
+          }}
+        >
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="report-period-title"
+            aria-describedby="report-period-description"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void downloadReport();
+            }}
+            className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-900"
+          >
+            <h2 id="report-period-title" className="text-lg font-semibold text-gray-900 dark:text-white">
+              Choose report period
+            </h2>
+            <p id="report-period-description" className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+              Select the dates to include in your Excel report. Defaults to the last 30 days.
+            </p>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                From
+                <input
+                  type="date"
+                  aria-label="Report start date"
+                  required
+                  value={exportStartDate}
+                  max={exportEndDate || undefined}
+                  onChange={(event) => {
+                    setExportStartDate(event.target.value);
+                    setExportDialogError("");
+                  }}
+                  className="h-11 min-w-0 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                To
+                <input
+                  type="date"
+                  aria-label="Report end date"
+                  required
+                  value={exportEndDate}
+                  min={exportStartDate || undefined}
+                  max={formatInputDate(new Date())}
+                  onChange={(event) => {
+                    setExportEndDate(event.target.value);
+                    setExportDialogError("");
+                  }}
+                  className="h-11 min-w-0 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                />
+              </label>
+            </div>
+            {exportDialogError && (
+              <p className="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">
+                {exportDialogError}
+              </p>
+            )}
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={exporting}
+                onClick={() => setExportDialogOpen(false)}
+                className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={exporting}
+                className="rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60"
+              >
+                {exporting ? "Preparing Excel..." : "Generate Excel report"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

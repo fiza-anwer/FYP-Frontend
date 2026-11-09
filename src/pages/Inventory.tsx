@@ -43,12 +43,44 @@ export default function Inventory() {
   const [error, setError] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
+  const [syncProgress, setSyncProgress] = useState<
+    Awaited<ReturnType<typeof tenantApi.getSyncStatus>>["status"]
+  >(null);
+  const [syncElapsed, setSyncElapsed] = useState(0);
+  const [syncProgressError, setSyncProgressError] = useState("");
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
   const [retryingKey, setRetryingKey] = useState<string | null>(null);
   const [failedSyncKeys, setFailedSyncKeys] = useState<Set<string>>(() => new Set());
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const outOfStockOnly = searchParams.get("stock") === "out";
+
+  useEffect(() => {
+    if (!syncing) return;
+    let active = true;
+    const pollStatus = async () => {
+      try {
+        const { status } = await tenantApi.getSyncStatus();
+        if (active && status) {
+          setSyncProgress(status);
+          setSyncProgressError("");
+          setSyncElapsed(Math.max(0, Math.floor((Date.now() - status.started_at) / 1000)));
+        }
+      } catch (e) {
+        if (active) {
+          setSyncProgressError(
+            e instanceof Error ? `Live progress unavailable: ${e.message}` : "Live progress unavailable."
+          );
+        }
+      }
+    };
+    void pollStatus();
+    const timer = window.setInterval(() => void pollStatus(), 1500);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [syncing]);
 
   const load = useCallback(async () => {
     setError("");
@@ -388,6 +420,50 @@ export default function Inventory() {
             {syncMessage}
           </div>
         )}
+        {syncing && (
+          <div
+            className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 dark:border-sky-800 dark:bg-sky-900/20"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span className="font-medium text-sky-900 dark:text-sky-100">
+                {syncProgress?.phase ?? "Starting sync"}
+              </span>
+              <span className="text-sky-800 dark:text-sky-200">
+                {Math.floor(syncElapsed / 60)}m {syncElapsed % 60}s elapsed
+                {syncProgress?.progress
+                  ? ` · approximately ${Math.max(0, Math.ceil(syncElapsed * (100 - syncProgress.progress) / syncProgress.progress))}s remaining`
+                  : ""}
+              </span>
+            </div>
+            <div
+              className="mt-2 h-2 overflow-hidden rounded-full bg-sky-200 dark:bg-sky-950"
+              role="progressbar"
+              aria-label="Inventory sync progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={syncProgress?.progress ?? 0}
+            >
+              <div
+                className="h-full rounded-full bg-sky-600 transition-all duration-500 dark:bg-sky-400"
+                style={{ width: `${syncProgress?.progress ?? 4}%` }}
+              />
+            </div>
+            {syncProgress && (
+              <p className="mt-2 text-xs text-sky-900 dark:text-sky-200">
+                Products published: {syncProgress.products_pushed} to Shopify, {syncProgress.products_pushed_daraz} to Daraz
+                {" · "}
+                Products: {syncProgress.products_imported} new, {syncProgress.products_updated} updated
+                {" · "}Orders: {syncProgress.orders_imported} new, {syncProgress.orders_updated} updated
+                {" · "}Inventory updates: {syncProgress.inventory_synced}
+              </p>
+            )}
+            {syncProgressError && (
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{syncProgressError}</p>
+            )}
+          </div>
+        )}
         {outOfStockOnly && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100">
             <span>Showing out-of-stock products only.</span>
@@ -400,33 +476,33 @@ export default function Inventory() {
             </button>
           </div>
         )}
-        <StickyToolbar className="flex flex-col items-stretch gap-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4" data-tour="inventory-toolbar">
+        <StickyToolbar className="flex flex-col items-stretch gap-3 py-2 lg:flex-row lg:flex-wrap lg:items-center lg:gap-4" data-tour="inventory-toolbar">
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search products, SKU, variants..."
-            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:max-w-xs"
+            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 lg:max-w-xs"
           />
           <button
             type="button"
             aria-expanded={mobileToolbarOpen}
             aria-controls="inventory-mobile-controls"
             onClick={() => setMobileToolbarOpen((open) => !open)}
-            className="flex h-11 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:hidden"
+            className="flex h-11 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 lg:hidden"
           >
             <span>Filters and actions</span>
             <span aria-hidden="true">{mobileToolbarOpen ? "−" : "+"}</span>
           </button>
           <div
             id="inventory-mobile-controls"
-            className={`${mobileToolbarOpen ? "grid" : "hidden"} grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-4`}
+            className={`${mobileToolbarOpen ? "grid" : "hidden"} grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:items-center lg:gap-4`}
           >
           <button
             type="button"
             onClick={handleToolbarEdit}
             disabled={!hasSelection}
-            className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 sm:w-auto sm:px-4"
+            className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 lg:w-auto lg:px-4"
           >
             Edit
           </button>
@@ -434,14 +510,14 @@ export default function Inventory() {
             type="button"
             onClick={() => void handleToolbarDelete()}
             disabled={!hasSelection}
-            className="h-11 w-full rounded-lg border border-rose-200 bg-white px-3 text-sm font-medium text-rose-600 shadow-sm hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-rose-800 dark:bg-gray-800 dark:text-rose-400 dark:hover:bg-rose-900/20 sm:w-auto sm:px-4"
+            className="h-11 w-full rounded-lg border border-rose-200 bg-white px-3 text-sm font-medium text-rose-600 shadow-sm hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-rose-800 dark:bg-gray-800 dark:text-rose-400 dark:hover:bg-rose-900/20 lg:w-auto lg:px-4"
           >
             Delete
           </button>
           <select
             value={companyFilter}
             onChange={(e) => setCompanyFilter(e.target.value)}
-            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
+            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 lg:w-auto lg:px-3"
             aria-label="Filter by company"
           >
             <option value="">All companies</option>
@@ -454,7 +530,7 @@ export default function Inventory() {
           <select
             value={platformFilter}
             onChange={(e) => setPlatformFilter(e.target.value)}
-            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
+            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 lg:w-auto lg:px-3"
             aria-label="Filter by platform"
           >
             <option value="">All platforms</option>
@@ -466,7 +542,7 @@ export default function Inventory() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
+            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 lg:w-auto lg:px-3"
             aria-label="Filter by category"
           >
             <option value="">All categories</option>
@@ -481,7 +557,7 @@ export default function Inventory() {
             onChange={(e) =>
               setSort(e.target.value as typeof sort)
             }
-            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
+            className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 lg:w-auto lg:px-3"
             aria-label="Sort inventory"
           >
             <option value="newest">Newest first</option>
@@ -499,6 +575,9 @@ export default function Inventory() {
               setError("");
               setSyncMessage("");
               setSyncing(true);
+              setSyncProgress(null);
+              setSyncProgressError("");
+              setSyncElapsed(0);
               try {
                 const res = await tenantApi.syncAll();
                 const parts = [];
@@ -544,7 +623,7 @@ export default function Inventory() {
               }
             }}
             disabled={syncing}
-            className="h-11 w-full rounded-lg border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100 disabled:opacity-60 dark:border-sky-600 dark:bg-sky-900/20 dark:text-sky-200 dark:hover:bg-sky-900/30 sm:ml-auto sm:w-auto"
+            className="h-11 w-full rounded-lg border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100 disabled:opacity-60 dark:border-sky-600 dark:bg-sky-900/20 dark:text-sky-200 dark:hover:bg-sky-900/30 lg:ml-auto lg:w-auto"
           >
             {syncing ? "Syncing…" : "Sync"}
           </button>
