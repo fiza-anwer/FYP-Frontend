@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
+import SelectField from "../components/form/SelectField";
 import { useNavigate, useSearchParams } from "react-router";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
@@ -438,7 +439,7 @@ export default function Inventory() {
           >
             Delete
           </button>
-          <select
+          <SelectField
             value={companyFilter}
             onChange={(e) => setCompanyFilter(e.target.value)}
             className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
@@ -450,8 +451,8 @@ export default function Inventory() {
                 {c.name}
               </option>
             ))}
-          </select>
-          <select
+          </SelectField>
+          <SelectField
             value={platformFilter}
             onChange={(e) => setPlatformFilter(e.target.value)}
             className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
@@ -462,8 +463,8 @@ export default function Inventory() {
             <option value="shopify">Shopify</option>
             <option value="daraz">Daraz</option>
             <option value="local">Local only</option>
-          </select>
-          <select
+          </SelectField>
+          <SelectField
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
             className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
@@ -475,8 +476,8 @@ export default function Inventory() {
                 {t}
               </option>
             ))}
-          </select>
-          <select
+          </SelectField>
+          <SelectField
             value={sort}
             onChange={(e) =>
               setSort(e.target.value as typeof sort)
@@ -490,7 +491,7 @@ export default function Inventory() {
             <option value="name_desc">Name Z–A</option>
             <option value="free_high">Free stock: high to low</option>
             <option value="free_low">Free stock: low to high</option>
-          </select>
+          </SelectField>
           </div>
           <button
             type="button"

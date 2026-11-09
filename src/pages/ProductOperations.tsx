@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import SelectField from "../components/form/SelectField";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
 import StickyToolbar from "../components/common/StickyToolbar";
@@ -434,7 +435,7 @@ export default function ProductOperations() {
 
                   <section className="rounded-xl border border-gray-100 bg-gray-50/50 p-5 dark:border-gray-800 dark:bg-gray-800/30">
                     <Label>Shipping country / region</Label>
-                    <select
+                    <SelectField
                       value={form.shipping_country}
                       onChange={(e) => setForm((f) => ({ ...f, shipping_country: e.target.value }))}
                       className="mt-1.5 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 pr-10 text-sm text-gray-800 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:focus:border-sky-500"
@@ -444,7 +445,7 @@ export default function ProductOperations() {
                           {opt.label}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                   </section>
 
                   <section className="rounded-xl border border-gray-100 bg-gray-50/50 p-5 dark:border-gray-800 dark:bg-gray-800/30">

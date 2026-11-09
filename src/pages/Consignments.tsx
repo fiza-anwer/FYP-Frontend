@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import SelectField from "../components/form/SelectField";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
 import StickyToolbar from "../components/common/StickyToolbar";
@@ -246,7 +247,7 @@ export default function Consignments() {
           Orders that already have a consignment. Print labels and dispatch only for orders with a shipping address. Track after dispatch.
         </p>
         <StickyToolbar className="flex flex-wrap items-center gap-4 py-2">
-          <select
+          <SelectField
             value={companyFilter}
             onChange={(e) => setCompanyFilter(e.target.value)}
             className="h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
@@ -258,8 +259,8 @@ export default function Consignments() {
                 {c.name}
               </option>
             ))}
-          </select>
-          <select
+          </SelectField>
+          <SelectField
             value={consignmentSort}
             onChange={(e) => setConsignmentSort(e.target.value as "newest" | "oldest")}
             className="h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 min-w-[140px]"
@@ -267,7 +268,7 @@ export default function Consignments() {
           >
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
-          </select>
+          </SelectField>
           <button
             type="button"
             onClick={handleDispatch}

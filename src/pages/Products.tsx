@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import SelectField from "../components/form/SelectField";
 import { Link, useSearchParams } from "react-router";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
@@ -1159,7 +1160,7 @@ export default function Products() {
                         <>
                           <div>
                             <Label>Company (required to publish on channels)</Label>
-                            <select
+                            <SelectField
                               value={form.company_id}
                               onChange={(e) => {
                                 const v = e.target.value;
@@ -1173,7 +1174,7 @@ export default function Products() {
                                   {c.name || c.id}
                                 </option>
                               ))}
-                            </select>
+                            </SelectField>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                               If this product already exists for the company (e.g. imported from a store), edit it from the list instead of adding again to avoid duplicates.
                             </p>
@@ -1420,7 +1421,7 @@ export default function Products() {
                 >
                   Delete
                 </button>
-                <select
+                <SelectField
                   value={companyFilter}
                   onChange={(e) => setCompanyFilter(e.target.value)}
                   className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
@@ -1432,8 +1433,8 @@ export default function Products() {
                       {c.name}
                     </option>
                   ))}
-                </select>
-                <select
+                </SelectField>
+                <SelectField
                   value={platformFilter}
                   onChange={(e) => setPlatformFilter(e.target.value)}
                   className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
@@ -1444,8 +1445,8 @@ export default function Products() {
                   <option value="shopify">Shopify</option>
                   <option value="daraz">Daraz</option>
                   <option value="local">Local only</option>
-                </select>
-                <select
+                </SelectField>
+                <SelectField
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
@@ -1454,8 +1455,8 @@ export default function Products() {
                   <option value="active">Active</option>
                   <option value="draft">Draft</option>
                   <option value="archived">Archived</option>
-                </select>
-                <select
+                </SelectField>
+                <SelectField
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value)}
                   className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
@@ -1466,8 +1467,8 @@ export default function Products() {
                       {t}
                     </option>
                   ))}
-                </select>
-                <select
+                </SelectField>
+                <SelectField
                   value={sort}
                   onChange={(e) => setSort(e.target.value as SortKey)}
                   className="h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:w-auto sm:px-3"
@@ -1478,7 +1479,7 @@ export default function Products() {
                   <option value="name_desc">Name Z–A</option>
                   <option value="price_asc">Price: low to high</option>
                   <option value="price_desc">Price: high to low</option>
-                </select>
+                </SelectField>
                 </div>
                 <button
                   type="button"
@@ -1572,7 +1573,7 @@ export default function Products() {
             {aiModels.length > 0 && (
               <div className="mt-4">
                 <Label>Gemini model</Label>
-                <select
+                <SelectField
                   value={aiModel}
                   onChange={(e) => setAiModel(e.target.value)}
                   disabled={aiGenerating || aiConfigLoading}
@@ -1583,12 +1584,12 @@ export default function Products() {
                       {m}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
             )}
             <div className="mt-4">
               <Label>Company</Label>
-              <select
+              <SelectField
                 value={aiCompanyId}
                 onChange={(e) => setAiCompanyId(e.target.value)}
                 disabled={aiGenerating}
@@ -1600,7 +1601,7 @@ export default function Products() {
                     {c.name || c.id}
                   </option>
                 ))}
-              </select>
+              </SelectField>
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Choose which company this product belongs to. Required if you want to publish to connected stores.
               </p>
