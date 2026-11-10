@@ -4,7 +4,7 @@ import PageMeta from "../components/common/PageMeta";
 import StickyToolbar from "../components/common/StickyToolbar";
 import DataGrid, { type DataGridColumn } from "../components/common/DataGrid";
 import { tenantApi, openConsignmentLabel, type Order, type Consignment, type Company } from "../api/client";
-import { OrderChannelCell, OrderSyncStatus } from "../components/common/ChannelSyncStatus";
+import { OrderPlatformLogos } from "../components/common/ChannelSyncStatus";
 
 function formatDate(d: string) {
   try {
@@ -73,7 +73,7 @@ export default function Consignments() {
   platformFilter === "shopify" || platformFilter === "daraz"
     ? rows.filter((r) => (r._order?.source || "").toLowerCase() === platformFilter)
     : rows;
-  const sortedRows = [...rows].sort((a, b) => {
+  const sortedRows = [...rowsFilteredByPlatform].sort((a, b) => {
     const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
     const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
     return consignmentSort === "newest" ? tb - ta : ta - tb;
@@ -89,18 +89,7 @@ export default function Consignments() {
         </span>
       ),
     },
-    {
-      key: "channel",
-      label: "Company",
-      render: (_, row) =>
-        row._order ? <OrderChannelCell order={row._order} /> : <span className="text-gray-400">—</span>,
-    },
-    {
-      key: "sync_status",
-      label: "Status",
-      render: (_, row) =>
-        row._order ? <OrderSyncStatus order={row._order} /> : <span className="text-gray-400">—</span>,
-    },
+  
     {
       key: "address",
       label: "Shipping address",
@@ -199,6 +188,12 @@ export default function Consignments() {
       },
     },
     { key: "created_at", label: "Date", render: (v) => formatDate(String(v ?? "")) },
+    {
+  key: "platform",
+  label: "Platform",
+  render: (_, row) =>
+    row._order ? <OrderPlatformLogos order={row._order} /> : <span className="text-gray-400">—</span>,
+  },
   ];
 
   const selectedConsignmentIds = Array.from(selectedIds);
