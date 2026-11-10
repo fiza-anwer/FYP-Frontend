@@ -340,10 +340,8 @@ export default function Orders() {
             aria-label="Filter by platform"
           >
             <option value="">All platforms</option>
-            <option value="both">Both (Shopify + Daraz)</option>
             <option value="shopify">Shopify</option>
             <option value="daraz">Daraz</option>
-            <option value="local">Local only</option>
           </select>
           <select
             value={orderSort}
