@@ -287,7 +287,6 @@ export default function Consignments() {
             {dispatchLoading ? "Dispatching…" : `Dispatch ${selectedWithAddress.length > 0 ? `(${selectedWithAddress.length})` : ""}`}
           </button>
           {selectedIds.size > 0 && selectedWithAddress.length < selectedIds.size && (
-            
           <span className="text-sm text-amber-700 dark:text-amber-400">
             {selectedIds.size - selectedWithAddress.length} selected have no address or are already dispatched — excluded.
           </span>
