@@ -1393,7 +1393,7 @@ export default function Products() {
                   className="rounded-lg border-gray-200 dark:border-gray-600"
                 />
               </div>
-              <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:flex-wrap lg:items-center lg:gap-3">
+              <div className="flex w-full flex-col gap-2 lg:w-full lg:flex-row lg:flex-wrap lg:items-center lg:gap-3">
                 <button
                   type="button"
                   aria-expanded={mobileToolbarOpen}
