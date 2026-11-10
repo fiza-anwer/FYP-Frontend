@@ -31,8 +31,6 @@ type OrderWithConsignment = Order & { _consignment?: Consignment | null };
 
 function buildColumns(): DataGridColumn<OrderWithConsignment>[] {
   return [
-    { key: "platform", label: "Platform", render: (_, row) => <OrderPlatformLogos order={row} /> },
-    { key: "order_status", label: "Order status", render: (_, row) => statusBadge(row.status) },
     { key: "order_number", label: "Order #", render: (v) => <span className="font-medium text-gray-900 dark:text-white">{String(v ?? "—")}</span> },
     { key: "email", label: "Email" },
     {
@@ -49,6 +47,8 @@ function buildColumns(): DataGridColumn<OrderWithConsignment>[] {
     { key: "financial_status", label: "Financial", render: (v) => v || "—" },
     { key: "fulfillment_status", label: "Fulfillment", render: (v) => (v ? <span className={v === "fulfilled" ? "text-green-600 dark:text-green-400 font-medium" : ""}>{v}</span> : "—") },
     { key: "created_at", label: "Date", render: (v) => formatDate(String(v ?? "")) },
+    { key: "order_status", label: "Order status", render: (_, row) => statusBadge(row.status) },
+    { key: "platform", label: "Platform", render: (_, row) => <OrderPlatformLogos order={row} /> },
   ];
 }
 
