@@ -1511,8 +1511,8 @@ export default function Products() {
                   type="button"
                   onClick={openCreate}
                   data-tour="products-create"
-                   className="h-11 w-full rounded-lg bg-sky-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600 lg:ml-auto lg:w-auto"
->
+                   className="ml-auto h-11 rounded-lg bg-sky-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600"
+                   >
                   Add product
                 </button>
               </div>
