@@ -159,12 +159,12 @@ export default function Orders() {
     ? allOrders.filter((o) => o.company_id === companyFilter)
     : allOrders;
   const ordersFilteredByPlatform = ordersFilteredByCompany.filter((o) => {
-    const source = (o.source || "local").toLowerCase();
-    if (platformFilter === "both") return source === "shopify" || source === "daraz";
-    if (platformFilter === "shopify" || platformFilter === "daraz") return source === platformFilter;
-    if (platformFilter === "local") return source === "local";
-    return true;
-  });
+  const source = (o.source || "local").toLowerCase();
+  if (platformFilter === "shopify" || platformFilter === "daraz") {
+    return source === platformFilter;
+  }
+  return true; // no platform selected / "all"
+});
   const ordersFilteredByStatus = ordersFilteredByPlatform.filter((o) => statusFilter.includes(o.status));
   const ordersFilteredBySearch = useMemo(() => {
     if (!headerSearch) return ordersFilteredByStatus;
