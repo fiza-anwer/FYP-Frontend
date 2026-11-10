@@ -27,6 +27,7 @@ export default function Consignments() {
   const [consignments, setConsignments] = useState<Consignment[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyFilter, setCompanyFilter] = useState("");
+  const [platformFilter, setPlatformFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -68,6 +69,10 @@ export default function Consignments() {
     ...c,
     _order: ordersById[c.order_id] ?? null,
   }));
+  const rowsFilteredByPlatform =
+  platformFilter === "shopify" || platformFilter === "daraz"
+    ? rows.filter((r) => (r._order?.source || "").toLowerCase() === platformFilter)
+    : rows;
   const sortedRows = [...rows].sort((a, b) => {
     const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
     const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -258,6 +263,16 @@ export default function Consignments() {
                 {c.name}
               </option>
             ))}
+          </select>
+          <select
+            value={platformFilter}
+            onChange={(e) => setPlatformFilter(e.target.value)}
+            className="h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+            aria-label="Filter by platform"
+          >
+            <option value="">All platforms</option>
+            <option value="shopify">Shopify</option>
+            <option value="daraz">Daraz</option>
           </select>
           <select
             value={consignmentSort}
