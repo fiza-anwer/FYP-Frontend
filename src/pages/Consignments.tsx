@@ -287,10 +287,21 @@ export default function Consignments() {
             {dispatchLoading ? "Dispatching…" : `Dispatch ${selectedWithAddress.length > 0 ? `(${selectedWithAddress.length})` : ""}`}
           </button>
           {selectedIds.size > 0 && selectedWithAddress.length < selectedIds.size && (
-            <span className="text-sm text-amber-700 dark:text-amber-400">
-              {selectedIds.size - selectedWithAddress.length} selected have no address or are already dispatched — excluded.
-            </span>
-          )}
+            
+          <span className="text-sm text-amber-700 dark:text-amber-400">
+            {selectedIds.size - selectedWithAddress.length} selected have no address or are already dispatched — excluded.
+          </span>
+        )}
+        <div className="flex items-center gap-2 ml-auto">
+          <button
+            type="button"
+            onClick={handleDispatch}
+            disabled={selectedWithAddress.length === 0 || dispatchLoading}
+            className="px-3 py-2 text-sm font-medium text-white rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {dispatchLoading ? "Dispatching…" : `Dispatch ${selectedWithAddress.length > 0 ? `(${selectedWithAddress.length})` : ""}`}
+          </button>
+        </div>
         </StickyToolbar>
         <DataGrid
           columns={columns}
