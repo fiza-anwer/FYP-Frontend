@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import SelectField from "../components/form/SelectField";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
 import StickyToolbar from "../components/common/StickyToolbar";
@@ -195,7 +196,7 @@ export default function CarrierIntegrationServices() {
               <SetupFormSection title="Service mapping" description="Link a carrier service to your integration.">
                 <div>
                   <Label>Carrier integration</Label>
-                  <select
+                  <SelectField
                     value={formCarrierIntegrationId}
                     onChange={(e) => onFormCarrierIntegrationChange(e.target.value)}
                     className="mt-1.5 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
@@ -204,11 +205,11 @@ export default function CarrierIntegrationServices() {
                     {carrierIntegrations.map((c) => (
                       <option key={c.id} value={c.id}>{c.carrier_name}</option>
                     ))}
-                  </select>
+                  </SelectField>
                 </div>
                 <div>
                   <Label>Service</Label>
-                  <select
+                  <SelectField
                     value={formCarrierServiceId}
                     onChange={(e) => setFormCarrierServiceId(e.target.value)}
                     className="mt-1.5 h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
@@ -217,7 +218,7 @@ export default function CarrierIntegrationServices() {
                     {carrierServices.map((s) => (
                       <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
                     ))}
-                  </select>
+                  </SelectField>
                   {carrierIntegrations.length === 0 && (
                     <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">Create a carrier integration first.</p>
                   )}
@@ -229,7 +230,7 @@ export default function CarrierIntegrationServices() {
           <>
             <StickyToolbar className="flex flex-wrap items-center gap-4">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Carrier integration</label>
-              <select
+              <SelectField
                 value={filterCarrierIntegrationId}
                 onChange={(e) => setFilterCarrierIntegrationId(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white min-w-[200px]"
@@ -240,7 +241,7 @@ export default function CarrierIntegrationServices() {
                     {c.carrier_name}
                   </option>
                 ))}
-              </select>
+              </SelectField>
               <button
                 type="button"
                 onClick={openCreate}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import SelectField from "../components/form/SelectField";
 import axios from "axios";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
@@ -356,7 +357,7 @@ export default function CompanyIntegrations() {
               <SetupFormSection title="Connection" description="Which company and sales channel to link.">
                 <div>
                   <Label>Company</Label>
-                  <select
+                  <SelectField
                     value={formCompanyId}
                     onChange={(e) => setFormCompanyId(e.target.value)}
                     disabled={!!editing}
@@ -366,14 +367,14 @@ export default function CompanyIntegrations() {
                     {companies.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
-                  </select>
+                  </SelectField>
                   {!editing && companies.length === 0 && (
                     <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">Create a company first from the Companies page.</p>
                   )}
                 </div>
                 <div>
                   <Label>Integration</Label>
-                  <select
+                  <SelectField
                     value={formIntegrationId}
                     onChange={(e) => {
                       setFormIntegrationId(e.target.value);
@@ -388,7 +389,7 @@ export default function CompanyIntegrations() {
                     {integrations.map((i) => (
                       <option key={i.id} value={i.id}>{i.name}</option>
                     ))}
-                  </select>
+                  </SelectField>
                   {!editing && integrations.length === 0 && (
                     <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">No integrations available. Run backend migration then refresh.</p>
                   )}

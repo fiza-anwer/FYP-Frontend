@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import SelectField from "../components/form/SelectField";
 import { useSearchParams } from "react-router";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
@@ -320,7 +321,7 @@ export default function Orders() {
           </div>
         )}
         <StickyToolbar className="flex flex-wrap items-center gap-4 py-2" data-tour="orders-toolbar">
-          <select
+          <SelectField
             value={companyFilter}
             onChange={(e) => setCompanyFilter(e.target.value)}
             className="px-3 py-2 text-sm border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white min-w-[160px]"
@@ -332,8 +333,8 @@ export default function Orders() {
                 {c.name}
               </option>
             ))}
-          </select>
-          <select
+          </SelectField>
+          <SelectField
             value={platformFilter}
             onChange={(e) => setPlatformFilter(e.target.value)}
             className="px-3 py-2 text-sm border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white min-w-[160px]"
@@ -342,8 +343,8 @@ export default function Orders() {
             <option value="">All platforms</option>
             <option value="shopify">Shopify</option>
             <option value="daraz">Daraz</option>
-          </select>
-          <select
+          </SelectField>
+          <SelectField
             value={orderSort}
             onChange={(e) => setOrderSort(e.target.value as "newest" | "oldest")}
             className="px-3 py-2 text-sm border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white min-w-[140px]"
@@ -351,7 +352,7 @@ export default function Orders() {
           >
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
-          </select>
+          </SelectField>
           <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 dark:text-gray-300">
             <input
               type="checkbox"
@@ -382,7 +383,7 @@ export default function Orders() {
             <form onSubmit={handleBackfill} className="flex flex-wrap items-end gap-4">
               <div>
                 <label className="block text-xs font-medium text-amber-900 dark:text-amber-200 mb-1">Company</label>
-                <select
+                <SelectField
                   value={backfillCompanyId}
                   onChange={(e) => setBackfillCompanyId(e.target.value)}
                   required
@@ -394,11 +395,11 @@ export default function Orders() {
                       {c.name}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
               <div>
                 <label className="block text-xs font-medium text-amber-900 dark:text-amber-200 mb-1">Source (e.g. shopify)</label>
-                <select
+                <SelectField
                   value={backfillSource}
                   onChange={(e) => setBackfillSource(e.target.value)}
                   required
@@ -410,7 +411,7 @@ export default function Orders() {
                       {s}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
               <button
                 type="submit"
@@ -463,7 +464,7 @@ export default function Orders() {
             <form onSubmit={handleCreateConsignment} className="space-y-4">
               <div>
                 <Label htmlFor="carrier">Carrier integration</Label>
-                <select
+                <SelectField
                   id="carrier"
                   value={consignmentCarrierId}
                   onChange={(e) => {
@@ -486,11 +487,11 @@ export default function Orders() {
                       {suggestedIntegration?.id === ci.id ? " (suggested)" : ""}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
               <div>
                 <Label htmlFor="service">Carrier service</Label>
-                <select
+                <SelectField
                   id="service"
                   value={consignmentServiceId}
                   onChange={(e) => setConsignmentServiceId(e.target.value)}
@@ -504,7 +505,7 @@ export default function Orders() {
                       {s.carrier_service_name} ({s.carrier_service_code})
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {selectedWithAddress.length} order(s) with shipping address will get a label. {selectedWithoutAddress.length > 0 && `${selectedWithoutAddress.length} selected have no address and were excluded.`}

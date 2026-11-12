@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import SelectField from "../components/form/SelectField";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
 import StickyToolbar from "../components/common/StickyToolbar";
@@ -201,7 +202,7 @@ export default function CarrierIntegrations() {
               <SetupFormSection title="Carrier" description="Which logistics partner to connect.">
                 <div>
                   <Label>Carrier</Label>
-                  <select
+                  <SelectField
                     value={formCarrierId}
                     onChange={(e) => { setFormCarrierId(e.target.value); setFormCredentials({}); }}
                     disabled={!!editing}
@@ -211,7 +212,7 @@ export default function CarrierIntegrations() {
                     {carriers.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
-                  </select>
+                  </SelectField>
                   {!editing && carriers.length === 0 && (
                     <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">No carriers available. Run backend migrations, then refresh.</p>
                   )}
