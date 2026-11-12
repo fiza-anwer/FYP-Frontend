@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import SelectField from "../components/form/SelectField";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
 import { API_BASE, api } from "../api/client";
@@ -428,15 +429,15 @@ export default function HelpSupport() {
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Category
-                <select className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900 dark:text-white" value={category} onChange={(event) => setCategory(event.target.value)}>
+                <SelectField className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900 dark:text-white" value={category} onChange={(event) => setCategory(event.target.value)}>
                   {categories.map((option) => <option key={option}>{option}</option>)}
-                </select>
+                </SelectField>
               </label>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Priority
-                <select className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900 dark:text-white" value={priority} onChange={(event) => setPriority(event.target.value)}>
+                <SelectField className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900 dark:text-white" value={priority} onChange={(event) => setPriority(event.target.value)}>
                   {priorities.map((option) => <option key={option}>{option}</option>)}
-                </select>
+                </SelectField>
               </label>
             </div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -522,14 +523,14 @@ export default function HelpSupport() {
                           <p className="text-xs font-semibold text-violet-600 dark:text-violet-400">{ticket.ticket_number} · {ticket.account_email} · {ticket.category} · {ticket.priority}</p>
                           <h3 className="mt-1 font-medium text-gray-900 dark:text-white">{ticket.subject}</h3>
                         </div>
-                        <select
+                        <SelectField
                           aria-label={`Status for ${ticket.ticket_number}`}
                           className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                           value={ticket.status}
                           onChange={(event) => changeTicketStatus(ticket.id, event.target.value)}
                         >
                           {["Open", "In progress", "Resolved"].map((option) => <option key={option}>{option}</option>)}
-                        </select>
+                        </SelectField>
                       </div>
                       <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-400">{ticket.description}</p>
                       {ticket.replies.map((reply, index) => (
