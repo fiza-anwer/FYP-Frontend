@@ -78,6 +78,25 @@ function formatInputDate(date: Date) {
   return localDate.toISOString().slice(0, 10);
 }
 
+function getDefaultDateRange() {
+  const end = new Date();
+  const start = new Date(end);
+  start.setDate(start.getDate() - 364);
+  return { startDate: formatInputDate(start), endDate: formatInputDate(end) };
+}
+
+function isValidReportDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day &&
+    value <= formatInputDate(new Date())
+  );
+}
+
 function formatReportDate(value: string) {
   const date = new Date(`${value}T12:00:00`);
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -105,7 +124,11 @@ function DateRangeControls({
           aria-label="Report start date"
           className="w-full min-w-0 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
           value={startDate}
-          onChange={(event) => onStartDateChange(event.target.value)}
+          max={formatInputDate(new Date())}
+          onChange={(event) => {
+            const value = event.target.value;
+            if (!value || isValidReportDate(value)) onStartDateChange(value);
+          }}
         />
       </div>
       <div className="flex min-w-0 flex-col gap-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">
@@ -115,7 +138,11 @@ function DateRangeControls({
           aria-label="Report end date"
           className="w-full min-w-0 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
           value={endDate}
-          onChange={(event) => onEndDateChange(event.target.value)}
+          max={formatInputDate(new Date())}
+          onChange={(event) => {
+            const value = event.target.value;
+            if (!value || isValidReportDate(value)) onEndDateChange(value);
+          }}
         />
       </div>
       {(startDate || endDate) && (
@@ -231,10 +258,11 @@ function FeaturedHero({
 
 export default function TenantDashboard({ data }: { data: DashboardAnalytics }) {
   const [showAllStaleProducts, setShowAllStaleProducts] = useState(false);
-  const [ordersRangeStart, setOrdersRangeStart] = useState("");
-  const [ordersRangeEnd, setOrdersRangeEnd] = useState("");
-  const [revenueRangeStart, setRevenueRangeStart] = useState("");
-  const [revenueRangeEnd, setRevenueRangeEnd] = useState("");
+  const [defaultDateRange] = useState(getDefaultDateRange);
+  const [ordersRangeStart, setOrdersRangeStart] = useState(defaultDateRange.startDate);
+  const [ordersRangeEnd, setOrdersRangeEnd] = useState(defaultDateRange.endDate);
+  const [revenueRangeStart, setRevenueRangeStart] = useState(defaultDateRange.startDate);
+  const [revenueRangeEnd, setRevenueRangeEnd] = useState(defaultDateRange.endDate);
   const ordersRange = useDateRangeAnalytics(ordersRangeStart, ordersRangeEnd);
   const revenueRange = useDateRangeAnalytics(revenueRangeStart, revenueRangeEnd);
   const [exporting, setExporting] = useState(false);
