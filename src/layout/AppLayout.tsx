@@ -15,27 +15,25 @@ const LayoutContent: React.FC = () => {
 
   useEffect(() => {
     if (!user || isSuperadmin) return;
-    void tenantApi.getDashboardAnalytics().catch((error: unknown) => {
-      console.warn("Could not preload dashboard data:", error);
-    });
-    void import("../pages/Dashboard/Home").catch((error: unknown) => {
-      console.warn("Could not preload the dashboard page:", error);
-    });
-    void tenantApi.getProducts({ sort: "newest", limit: 10, offset: 0 }).catch((error: unknown) => {
-      console.warn("Could not preload products:", error);
-    });
-    void import("../pages/Products").catch((error: unknown) => {
-      console.warn("Could not preload the products page:", error);
-    });
-    void preloadTenantListData().catch((error: unknown) => {
-      console.warn("Could not preload orders and consignments:", error);
-    });
-    void import("../pages/Orders").catch((error: unknown) => {
-      console.warn("Could not preload the orders page:", error);
-    });
-    void import("../pages/Consignments").catch((error: unknown) => {
-      console.warn("Could not preload the consignments page:", error);
-    });
+    const preloadTimer = window.setTimeout(() => {
+      void tenantApi.getProducts({ sort: "newest", limit: 10, offset: 0 }).catch((error: unknown) => {
+        console.warn("Could not preload products:", error);
+      });
+      void import("../pages/Products").catch((error: unknown) => {
+        console.warn("Could not preload the products page:", error);
+      });
+      void preloadTenantListData().catch((error: unknown) => {
+        console.warn("Could not preload orders and consignments:", error);
+      });
+      void import("../pages/Orders").catch((error: unknown) => {
+        console.warn("Could not preload the orders page:", error);
+      });
+      void import("../pages/Consignments").catch((error: unknown) => {
+        console.warn("Could not preload the consignments page:", error);
+      });
+    }, 1200);
+
+    return () => window.clearTimeout(preloadTimer);
   }, [isSuperadmin, user]);
 
   return (

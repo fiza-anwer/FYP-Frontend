@@ -68,7 +68,7 @@ export default function Home() {
   }, [isSuperadmin]);
 
   useEffect(() => {
-    if (location.pathname !== "/") return;
+    if (location.pathname !== "/dashboard") return;
     const cleanup = loadData();
     return () => {
       if (typeof cleanup === "function") cleanup();
@@ -77,7 +77,7 @@ export default function Home() {
 
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === "visible" && location.pathname === "/") loadData();
+      if (document.visibilityState === "visible" && location.pathname === "/dashboard") loadData();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);

@@ -57,7 +57,7 @@ export default function SignInForm() {
       } catch {
         /* ignore */
       }
-      await offerToSaveCredentials(emailNorm, password);
+      void offerToSaveCredentials(emailNorm, password);
       const nextPath = res.user.isSuperadmin ? "/superadmin/tenants" : "/dashboard";
       redirectAfterAuth(nextPath);
       return;
