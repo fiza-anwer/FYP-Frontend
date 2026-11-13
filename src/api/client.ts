@@ -7,6 +7,7 @@ export function getToken(): string | null {
 }
 
 export function setToken(token: string): void {
+  clearApiCaches();
   localStorage.setItem(TOKEN_KEY, token);
 }
 
@@ -101,6 +102,92 @@ let onUnauthorized: (() => void) | null = null;
 
 export function setOnUnauthorized(fn: () => void) {
   onUnauthorized = fn;
+}
+
+type ProductsResponse = { products: Product[]; has_more?: boolean };
+type OrdersResponse = { orders: Order[]; has_more?: boolean };
+type ConsignmentsResponse = { consignments: Consignment[]; has_more?: boolean };
+type DashboardResponse = DashboardAnalytics;
+const PRODUCTS_CACHE_TTL_MS = 30_000;
+type CachedResponse<T> = { promise: Promise<T>; expiresAt: number };
+const productsCache = new Map<string, CachedResponse<ProductsResponse>>();
+const ordersCache = new Map<string, CachedResponse<OrdersResponse>>();
+const consignmentsCache = new Map<string, CachedResponse<ConsignmentsResponse>>();
+const dashboardCache = new Map<string, CachedResponse<DashboardResponse>>();
+let productsCacheGeneration = 0;
+let productsCacheToken: string | null = getToken();
+
+function clearApiCaches() {
+  productsCache.clear();
+  ordersCache.clear();
+  consignmentsCache.clear();
+  dashboardCache.clear();
+  productsCacheGeneration += 1;
+  productsCacheToken = getToken();
+}
+
+function syncApiCacheToken() {
+  const token = getToken();
+  if (productsCacheToken !== token) clearApiCaches();
+}
+
+function getCachedResponse<T>(
+  cache: Map<string, CachedResponse<T>>,
+  cacheKey: string,
+  path: string
+): Promise<T> {
+  syncApiCacheToken();
+  const cached = cache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.promise;
+
+  const requestGeneration = productsCacheGeneration;
+  const request = api<T>(path)
+    .then((response) => {
+      if (requestGeneration === productsCacheGeneration) {
+        cache.set(cacheKey, {
+          promise: Promise.resolve(response),
+          expiresAt: Date.now() + PRODUCTS_CACHE_TTL_MS,
+        });
+      }
+      return response;
+    })
+    .catch((error: unknown) => {
+      if (requestGeneration === productsCacheGeneration) cache.delete(cacheKey);
+      throw error;
+    });
+  cache.set(cacheKey, {
+    promise: request,
+    expiresAt: Date.now() + PRODUCTS_CACHE_TTL_MS,
+  });
+  return request;
+}
+
+function invalidateProductsCache() {
+  productsCache.clear();
+  dashboardCache.clear();
+  productsCacheGeneration += 1;
+  productsCacheToken = getToken();
+}
+
+function invalidateOrdersCache() {
+  ordersCache.clear();
+  dashboardCache.clear();
+  productsCacheGeneration += 1;
+}
+
+function invalidateConsignmentsCache() {
+  consignmentsCache.clear();
+  dashboardCache.clear();
+  productsCacheGeneration += 1;
+}
+
+function invalidateTenantListCaches() {
+  productsCache.clear();
+  ordersCache.clear();
+  consignmentsCache.clear();
+  dashboardCache.clear();
+  productsCacheGeneration += 1;
+  productsCacheToken = getToken();
 }
 
 export async function api<T>(
@@ -406,7 +493,8 @@ export const tenantApi = {
     if (params?.end_date) search.set("end_date", params.end_date);
     if (params?.include_orders) search.set("include_orders", "true");
     const query = search.toString();
-    return api<DashboardAnalytics>(`/api/tenant/dashboard/analytics${query ? `?${query}` : ""}`);
+    const suffix = query ? `?${query}` : "";
+    return getCachedResponse(dashboardCache, suffix, `/api/tenant/dashboard/analytics${suffix}`);
   },
   getCompanies: () =>
     api<{ companies: Company[] }>("/api/tenant/companies"),
@@ -442,20 +530,37 @@ export const tenantApi = {
     api<CompanyIntegration>(`/api/tenant/company-integrations/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteCompanyIntegration: (id: string) =>
     api<{ message: string }>(`/api/tenant/company-integrations/${id}`, { method: "DELETE" }),
-  getOrders: (params?: { company_id?: string; sort?: string; search?: string }) => {
+  getOrders: (params?: {
+    company_id?: string;
+    sort?: string;
+    search?: string;
+    order_ids?: string[];
+    limit?: number;
+    offset?: number;
+  }) => {
     const searchParams = new URLSearchParams();
     if (params?.company_id) searchParams.set("company_id", params.company_id);
     if (params?.sort?.trim()) searchParams.set("sort", params.sort.trim());
     if (params?.search?.trim()) searchParams.set("search", params.search.trim());
+    if (params?.order_ids?.length) searchParams.set("order_ids", params.order_ids.join(","));
+    if (params?.limit !== undefined) searchParams.set("limit", String(params.limit));
+    if (params?.offset !== undefined) searchParams.set("offset", String(params.offset));
     const q = searchParams.toString() ? `?${searchParams.toString()}` : "";
-    return api<{ orders: Order[] }>(`/api/tenant/orders${q}`);
+    return getCachedResponse(ordersCache, q, `/api/tenant/orders${q}`);
   },
-  getConsignments: (params?: { order_id?: string; company_id?: string }) => {
+  getConsignments: (params?: {
+    order_id?: string;
+    company_id?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
     const search = new URLSearchParams();
     if (params?.order_id) search.set("order_id", params.order_id);
     if (params?.company_id) search.set("company_id", params.company_id);
+    if (params?.limit !== undefined) search.set("limit", String(params.limit));
+    if (params?.offset !== undefined) search.set("offset", String(params.offset));
     const q = search.toString() ? `?${search.toString()}` : "";
-    return api<{ consignments: Consignment[] }>(`/api/tenant/consignments${q}`);
+    return getCachedResponse(consignmentsCache, q, `/api/tenant/consignments${q}`);
   },
   getCarriers: () =>
     api<{ carriers: Array<{ id: string; name: string; slug: string; credentials_schema: IntegrationCredentialSchema[] }> }>("/api/tenant/carriers"),
@@ -479,41 +584,54 @@ export const tenantApi = {
     api<CarrierIntegrationService>("/api/tenant/carrier-integration-services", { method: "POST", body: JSON.stringify(body) }),
   deleteCarrierIntegrationService: (id: string) =>
     api<void>(`/api/tenant/carrier-integration-services/${id}`, { method: "DELETE" }),
-  createConsignments: (body: {
+  createConsignments: async (body: {
     order_ids: string[];
     carrier_integration_id: string;
     carrier_service_id: string;
-  }) =>
-    api<{ created: number; errors: Array<{ order_id: string; error: string }> }>("/api/tenant/consignments", {
+  }) => {
+    const result = await api<{ created: number; errors: Array<{ order_id: string; error: string }> }>("/api/tenant/consignments", {
       method: "POST",
       body: JSON.stringify(body),
-    }),
-  dispatchOrders: (body: { order_ids: string[] }) =>
-    api<{ dispatched: number; errors: Array<{ order_id: string; error: string }> }>("/api/tenant/orders/dispatch", {
+    });
+    invalidateConsignmentsCache();
+    return result;
+  },
+  dispatchOrders: async (body: { order_ids: string[] }) => {
+    const result = await api<{ dispatched: number; errors: Array<{ order_id: string; error: string }> }>("/api/tenant/orders/dispatch", {
       method: "POST",
       body: JSON.stringify(body),
-    }),
-  backfillOrdersCompany: (body: { company_id: string; source: string }) =>
-    api<{ updated: number }>("/api/tenant/orders/backfill-company", {
+    });
+    invalidateOrdersCache();
+    return result;
+  },
+  backfillOrdersCompany: async (body: { company_id: string; source: string }) => {
+    const result = await api<{ updated: number }>("/api/tenant/orders/backfill-company", {
       method: "POST",
       body: JSON.stringify(body),
-    }),
+    });
+    invalidateOrdersCache();
+    return result;
+  },
   getProducts: (params?: {
     company_id?: string;
     search?: string;
     product_type?: string;
     sort?: string;
+    limit?: number;
+    offset?: number;
   }) => {
     const searchParams = new URLSearchParams();
     if (params?.company_id) searchParams.set("company_id", params.company_id);
     if (params?.search?.trim()) searchParams.set("search", params.search.trim());
     if (params?.product_type?.trim()) searchParams.set("product_type", params.product_type.trim());
     if (params?.sort?.trim()) searchParams.set("sort", params.sort.trim());
+    if (params?.limit !== undefined) searchParams.set("limit", String(params.limit));
+    if (params?.offset !== undefined) searchParams.set("offset", String(params.offset));
     const q = searchParams.toString() ? `?${searchParams.toString()}` : "";
-    return api<{ products: Product[] }>(`/api/tenant/products${q}`);
+    return getCachedResponse(productsCache, q, `/api/tenant/products${q}`);
   },
-  standardizeProductText: () =>
-    api<{
+  standardizeProductText: async () => {
+    const result = await api<{
       scanned: number;
       updated: number;
       update_failed: number;
@@ -521,8 +639,11 @@ export const tenantApi = {
       shopify_failed: number;
       daraz_manual_update_required: number;
       errors: Array<{ product_id: string; channel: string; message: string }>;
-    }>("/api/tenant/products/standardize-text", { method: "POST" }),
-  createProduct: (body: {
+    }>("/api/tenant/products/standardize-text", { method: "POST" });
+    invalidateProductsCache();
+    return result;
+  },
+  createProduct: async (body: {
     title: string;
     company_id?: string;
     sku?: string;
@@ -544,12 +665,15 @@ export const tenantApi = {
     integration_slugs?: string[];
     quantity?: number;
     variants?: ProductVariant[];
-  }) =>
-    api<Product>("/api/tenant/products", {
+  }) => {
+    const product = await api<Product>("/api/tenant/products", {
       method: "POST",
       body: JSON.stringify(body),
-    }),
-  updateProduct: (
+    });
+    invalidateProductsCache();
+    return product;
+  },
+  updateProduct: async (
     id: string,
     body: {
       title?: string;
@@ -572,17 +696,29 @@ export const tenantApi = {
       integration_slugs?: string[];
       variants?: ProductVariant[];
     }
-  ) =>
-    api<Product>(`/api/tenant/products/${id}`, {
+  ) => {
+    const product = await api<Product>(`/api/tenant/products/${id}`, {
       method: "PUT",
       body: JSON.stringify(body),
-    }),
-  deleteProduct: (id: string) =>
-    api<{ message: string }>(`/api/tenant/products/${id}`, { method: "DELETE" }),
-  pushProductToShopify: (id: string) =>
-    api<Product>(`/api/tenant/products/${id}/push-to-shopify`, { method: "POST" }),
-  pushProductToDaraz: (id: string) =>
-    api<Product & { message?: string }>(`/api/tenant/products/${id}/push-to-daraz`, { method: "POST" }),
+    });
+    invalidateProductsCache();
+    return product;
+  },
+  deleteProduct: async (id: string) => {
+    const result = await api<{ message: string }>(`/api/tenant/products/${id}`, { method: "DELETE" });
+    invalidateProductsCache();
+    return result;
+  },
+  pushProductToShopify: async (id: string) => {
+    const product = await api<Product>(`/api/tenant/products/${id}/push-to-shopify`, { method: "POST" });
+    invalidateProductsCache();
+    return product;
+  },
+  pushProductToDaraz: async (id: string) => {
+    const product = await api<Product & { message?: string }>(`/api/tenant/products/${id}/push-to-daraz`, { method: "POST" });
+    invalidateProductsCache();
+    return product;
+  },
   getAiConfig: () =>
     api<{ configured: boolean; model: string; models: string[] }>("/api/tenant/ai/config"),
   generateProductListing: (keywords: string, model?: string) =>
@@ -621,8 +757,8 @@ export const tenantApi = {
   },
   getInventoryByProduct: (productId: string) =>
     api<InventoryItem | null>(`/api/tenant/inventory/${productId}`),
-  syncAll: () =>
-    api<{
+  syncAll: async () => {
+    const result = await api<{
       products_imported: number;
       products_updated?: number;
       products_fetched?: number;
@@ -633,7 +769,10 @@ export const tenantApi = {
       orders_fetched?: number;
       inventory_synced: number;
       errors: Array<{ scope: string; error: string; product_id?: string; channel?: string }>;
-    }>("/api/tenant/sync", { method: "POST" }),
+    }>("/api/tenant/sync", { method: "POST" });
+    invalidateTenantListCaches();
+    return result;
+  },
   getSyncStatus: () =>
     api<{
       status: null | {
@@ -654,11 +793,14 @@ export const tenantApi = {
         errors: Array<{ scope: string; error: string }>;
       };
     }>("/api/tenant/sync/status"),
-  patchInventory: (productId: string, body: { quantity: number }) =>
-    api<{ quantity: number; allocated: number }>(`/api/tenant/inventory/${productId}`, {
+  patchInventory: async (productId: string, body: { quantity: number }) => {
+    const result = await api<{ quantity: number; allocated: number }>(`/api/tenant/inventory/${productId}`, {
       method: "PATCH",
       body: JSON.stringify(body),
-    }),
+    });
+    invalidateProductsCache();
+    return result;
+  },
   getStockAlerts: () => api<StockAlertSummary>("/api/tenant/stock-alerts"),
   dismissStockAlerts: (alertIds?: string[]) =>
     api<{ ok: boolean }>("/api/tenant/stock-alerts/dismiss", {
@@ -666,3 +808,14 @@ export const tenantApi = {
       body: JSON.stringify(alertIds?.length ? { alert_ids: alertIds } : {}),
     }),
 };
+
+export async function preloadTenantListData(): Promise<void> {
+  const [, consignments] = await Promise.all([
+    tenantApi.getOrders({ sort: "newest", limit: 10, offset: 0 }),
+    tenantApi.getConsignments({ limit: 10, offset: 0 }),
+  ]);
+  const orderIds = (consignments.consignments || []).map((consignment) => consignment.order_id);
+  if (orderIds.length > 0) {
+    await tenantApi.getOrders({ order_ids: orderIds });
+  }
+}

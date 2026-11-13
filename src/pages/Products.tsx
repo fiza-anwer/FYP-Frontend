@@ -106,6 +106,9 @@ export default function Products() {
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMoreProducts, setLoadingMoreProducts] = useState(false);
+  const [hasMoreProducts, setHasMoreProducts] = useState(false);
+  const [nextProductsOffset, setNextProductsOffset] = useState(0);
   const [error, setError] = useState("");
   const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
   const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false);
@@ -145,19 +148,51 @@ export default function Products() {
   const load = useCallback(async () => {
     setError("");
     setLoading(true);
+    setProducts([]);
+    setNextProductsOffset(0);
+    setHasMoreProducts(false);
     try {
-      const params: { company_id?: string; product_type?: string; sort?: string } = {};
+      const params: { company_id?: string; product_type?: string; sort?: string; limit: number; offset: number } = {
+        limit: 10,
+        offset: 0,
+      };
       if (companyFilter) params.company_id = companyFilter;
       if (typeFilter.trim()) params.product_type = typeFilter.trim();
       params.sort = sort;
       const res = await tenantApi.getProducts(params);
-      setProducts(Array.isArray(res?.products) ? res.products : []);
+      const firstProducts = Array.isArray(res?.products) ? res.products : [];
+      setProducts(firstProducts);
+      setNextProductsOffset(firstProducts.length);
+      setHasMoreProducts(!!res?.has_more);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load products");
     } finally {
       setLoading(false);
     }
   }, [companyFilter, typeFilter, sort]);
+
+  const loadMoreProducts = useCallback(async () => {
+    if (loadingMoreProducts || !hasMoreProducts) return;
+    setLoadingMoreProducts(true);
+    try {
+      const res = await tenantApi.getProducts({
+        company_id: companyFilter || undefined,
+        product_type: typeFilter.trim() || undefined,
+        sort,
+        limit: 10,
+        offset: nextProductsOffset,
+      });
+      const moreProducts = Array.isArray(res?.products) ? res.products : [];
+      setProducts((current) => [...current, ...moreProducts]);
+      setNextProductsOffset((offset) => offset + moreProducts.length);
+      setHasMoreProducts(!!res?.has_more);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load more products");
+      setHasMoreProducts(false);
+    } finally {
+      setLoadingMoreProducts(false);
+    }
+  }, [companyFilter, hasMoreProducts, loadingMoreProducts, nextProductsOffset, sort, typeFilter]);
 
   useEffect(() => {
     void load();
@@ -1526,6 +1561,10 @@ export default function Products() {
                 keyExtractor={(row) => getRowId(row)}
                 emptyMessage="No products match your filters. Add a product to get started."
                 loading={loading}
+                hasMore={hasMoreProducts}
+                loadingMore={loadingMoreProducts}
+                onLoadMore={loadMoreProducts}
+                resetKey={`${companyFilter}:${typeFilter}:${sort}`}
                 selectable
                 mobileCards
                 selectedIds={selectedRowIds}

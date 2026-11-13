@@ -4,6 +4,7 @@ import { tenantApi, type DashboardAnalytics } from "../../api/client";
 import DashboardGradientKpi from "../../components/dashboard/DashboardGradientKpi";
 import DashboardPanel from "../../components/dashboard/DashboardPanel";
 import DeferredChart from "../../components/dashboard/DeferredChart";
+import DateInput from "../../components/form/DateInput";
 import Badge from "../../components/ui/badge/Badge";
 import { useAuth } from "../../context/AuthContext";
 
@@ -97,26 +98,26 @@ function DateRangeControls({
 }) {
   return (
     <div className="grid w-full max-w-[360px] min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
-      <label className="flex min-w-0 flex-col gap-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">
-        From
-        <input
+      <div className="flex min-w-0 flex-col gap-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+        <label htmlFor="orders-range-start">From</label>
+        <DateInput
+          id="orders-range-start"
           aria-label="Report start date"
           className="w-full min-w-0 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-          type="date"
           value={startDate}
           onChange={(event) => onStartDateChange(event.target.value)}
         />
-      </label>
-      <label className="flex min-w-0 flex-col gap-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">
-        To
-        <input
+      </div>
+      <div className="flex min-w-0 flex-col gap-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+        <label htmlFor="orders-range-end">To</label>
+        <DateInput
+          id="orders-range-end"
           aria-label="Report end date"
           className="w-full min-w-0 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-          type="date"
           value={endDate}
           onChange={(event) => onEndDateChange(event.target.value)}
         />
-      </label>
+      </div>
       {(startDate || endDate) && (
         <button
           type="button"
@@ -787,7 +788,7 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
       </DashboardPanel>
       {exportDialogOpen && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget && !exporting) setExportDialogOpen(false);
           }}
@@ -810,10 +811,10 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
               Select the dates to include in your Excel report. Defaults to the last 30 days.
             </p>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
-                From
-                <input
-                  type="date"
+              <div className="flex flex-col gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="export-start-date">From</label>
+                <DateInput
+                  id="export-start-date"
                   aria-label="Report start date"
                   required
                   value={exportStartDate}
@@ -824,11 +825,11 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
                   }}
                   className="h-11 min-w-0 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                 />
-              </label>
-              <label className="flex flex-col gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
-                To
-                <input
-                  type="date"
+              </div>
+              <div className="flex flex-col gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="export-end-date">To</label>
+                <DateInput
+                  id="export-end-date"
                   aria-label="Report end date"
                   required
                   value={exportEndDate}
@@ -840,7 +841,7 @@ export default function TenantDashboard({ data }: { data: DashboardAnalytics }) 
                   }}
                   className="h-11 min-w-0 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                 />
-              </label>
+              </div>
             </div>
             {exportDialogError && (
               <p className="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">

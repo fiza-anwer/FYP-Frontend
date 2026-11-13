@@ -52,6 +52,9 @@ function emptyForm() {
 export default function ProductOperations() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextOffset, setNextOffset] = useState(0);
   const [error, setError] = useState("");
   const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
@@ -61,15 +64,38 @@ export default function ProductOperations() {
   const load = useCallback(async () => {
     setError("");
     setLoading(true);
+    setProducts([]);
+    setNextOffset(0);
+    setHasMore(false);
     try {
-      const res = await tenantApi.getProducts();
-      setProducts(Array.isArray(res?.products) ? res.products : []);
+      const res = await tenantApi.getProducts({ limit: 10, offset: 0 });
+      const firstProducts = Array.isArray(res?.products) ? res.products : [];
+      setProducts(firstProducts);
+      setNextOffset(firstProducts.length);
+      setHasMore(!!res?.has_more);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load products");
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const loadMoreProducts = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await tenantApi.getProducts({ limit: 10, offset: nextOffset });
+      const moreProducts = Array.isArray(res?.products) ? res.products : [];
+      setProducts((current) => [...current, ...moreProducts]);
+      setNextOffset((offset) => offset + moreProducts.length);
+      setHasMore(!!res?.has_more);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load more products");
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingMore, nextOffset]);
 
   useEffect(() => {
     void load();
@@ -493,6 +519,9 @@ export default function ProductOperations() {
           keyExtractor={(p) => p.id}
           emptyMessage="No products yet. Use Add product to create local products, or let your store integrations sync them."
           loading={loading}
+          hasMore={hasMore}
+          loadingMore={loadingMore}
+          onLoadMore={loadMoreProducts}
         />
       </div>
     </div>

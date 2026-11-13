@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import SelectField from "../components/form/SelectField";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
@@ -30,36 +30,83 @@ export default function Consignments() {
   const [companyFilter, setCompanyFilter] = useState("");
   const [platformFilter, setPlatformFilter] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextOffset, setNextOffset] = useState(0);
   const [error, setError] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dispatchLoading, setDispatchLoading] = useState(false);
   const [dispatchSuccessCount, setDispatchSuccessCount] = useState<number | null>(null);
   const [consignmentSort, setConsignmentSort] = useState<"newest" | "oldest">("newest");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setError("");
+    setLoading(true);
+    setOrders([]);
+    setConsignments([]);
+    setNextOffset(0);
+    setHasMore(false);
     try {
-      const params = companyFilter ? { company_id: companyFilter } : undefined;
-      const [ordersRes, consignmentsRes] = await Promise.all([
-        tenantApi.getOrders(params),
-        tenantApi.getConsignments(params),
+      const params = {
+        company_id: companyFilter || undefined,
+        limit: 10,
+        offset: 0,
+      };
+      const consignmentsRes = await tenantApi.getConsignments(params);
+      const firstConsignments = Array.isArray(consignmentsRes?.consignments)
+        ? consignmentsRes.consignments
+        : [];
+      setConsignments(firstConsignments);
+      setNextOffset(firstConsignments.length);
+      setHasMore(!!consignmentsRes?.has_more);
+      setLoading(false);
+      const [ordersRes, companiesRes] = await Promise.all([
+        firstConsignments.length > 0
+          ? tenantApi.getOrders({ order_ids: firstConsignments.map((consignment) => consignment.order_id) })
+          : Promise.resolve({ orders: [] as Order[] }),
+        tenantApi.getCompanies(),
       ]);
       setOrders(Array.isArray(ordersRes?.orders) ? ordersRes.orders : []);
-      setConsignments(Array.isArray(consignmentsRes?.consignments) ? consignmentsRes.consignments : []);
+      setCompanies(Array.isArray(companiesRes?.companies) ? companiesRes.companies : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load consignments");
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    load();
   }, [companyFilter]);
 
   useEffect(() => {
-    tenantApi.getCompanies().then((res) => setCompanies(res.companies || [])).catch(() => setCompanies([]));
-  }, []);
+    void load();
+  }, [load]);
+
+  const loadMoreConsignments = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await tenantApi.getConsignments({
+        company_id: companyFilter || undefined,
+        limit: 10,
+        offset: nextOffset,
+      });
+      const moreConsignments = Array.isArray(res?.consignments) ? res.consignments : [];
+      const ordersRes = await tenantApi.getOrders({
+        order_ids: moreConsignments.map((consignment) => consignment.order_id),
+      });
+      setConsignments((current) => [...current, ...moreConsignments]);
+      setOrders((current) => {
+        const byId = new Map(current.map((order) => [order.id, order]));
+        for (const order of ordersRes.orders || []) byId.set(order.id, order);
+        return Array.from(byId.values());
+      });
+      setNextOffset((offset) => offset + moreConsignments.length);
+      setHasMore(!!res?.has_more);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load more consignments");
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [companyFilter, hasMore, loadingMore, nextOffset]);
 
   const ordersById: Record<string, Order> = {};
   orders.forEach((o) => {
@@ -301,6 +348,10 @@ export default function Consignments() {
           keyExtractor={(r) => r.id}
           emptyMessage="No consignments yet. Create consignments from the Orders page."
           loading={loading}
+          hasMore={hasMore}
+          loadingMore={loadingMore}
+          onLoadMore={loadMoreConsignments}
+          resetKey={companyFilter}
           selectable
           selectedIds={Array.from(selectedIds)}
           onSelectionChange={(ids) => setSelectedIds(new Set(ids))}

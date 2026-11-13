@@ -41,6 +41,9 @@ export default function Inventory() {
     "newest"
   );
   const [loading, setLoading] = useState(true);
+  const [loadingMoreProducts, setLoadingMoreProducts] = useState(false);
+  const [hasMoreProducts, setHasMoreProducts] = useState(false);
+  const [nextProductsOffset, setNextProductsOffset] = useState(0);
   const [error, setError] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
@@ -85,16 +88,26 @@ export default function Inventory() {
 
   const load = useCallback(async () => {
     setError("");
+    setLoading(true);
+    setProducts([]);
+    setNextProductsOffset(0);
+    setHasMoreProducts(false);
     try {
-      const params: { company_id?: string; product_type?: string; sort?: string } = {};
+      const params: { company_id?: string; product_type?: string; sort?: string; limit?: number; offset?: number } = {};
       if (companyFilter) params.company_id = companyFilter;
       if (typeFilter.trim()) params.product_type = typeFilter.trim();
       params.sort = sort;
-      const [prodRes, companiesRes] = await Promise.all([
-        tenantApi.getProducts(params),
-        tenantApi.getCompanies(),
-      ]);
-      setProducts(Array.isArray(prodRes?.products) ? prodRes.products : []);
+      if (sort !== "free_low" && sort !== "free_high") {
+        params.limit = 10;
+        params.offset = 0;
+      }
+      const prodRes = await tenantApi.getProducts(params);
+      const firstProducts = Array.isArray(prodRes?.products) ? prodRes.products : [];
+      setProducts(firstProducts);
+      setNextProductsOffset(firstProducts.length);
+      setHasMoreProducts(!!prodRes?.has_more);
+      setLoading(false);
+      const companiesRes = await tenantApi.getCompanies();
       setCompanies(Array.isArray(companiesRes?.companies) ? companiesRes.companies : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load inventory");
@@ -102,6 +115,29 @@ export default function Inventory() {
       setLoading(false);
     }
   }, [companyFilter, typeFilter, sort]);
+
+  const loadMoreProducts = useCallback(async () => {
+    if (loadingMoreProducts || !hasMoreProducts) return;
+    setLoadingMoreProducts(true);
+    try {
+      const res = await tenantApi.getProducts({
+        company_id: companyFilter || undefined,
+        product_type: typeFilter.trim() || undefined,
+        sort,
+        limit: 10,
+        offset: nextProductsOffset,
+      });
+      const moreProducts = Array.isArray(res?.products) ? res.products : [];
+      setProducts((current) => [...current, ...moreProducts]);
+      setNextProductsOffset((offset) => offset + moreProducts.length);
+      setHasMoreProducts(!!res?.has_more);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load more inventory");
+      setHasMoreProducts(false);
+    } finally {
+      setLoadingMoreProducts(false);
+    }
+  }, [companyFilter, hasMoreProducts, loadingMoreProducts, nextProductsOffset, sort, typeFilter]);
 
   useEffect(() => {
     void load();
@@ -638,6 +674,10 @@ export default function Inventory() {
           keyExtractor={(row) => getRowId(row)}
           emptyMessage="No inventory. Add products or import from a connected store."
           loading={loading}
+          hasMore={hasMoreProducts}
+          loadingMore={loadingMoreProducts}
+          onLoadMore={loadMoreProducts}
+          resetKey={`${companyFilter}:${typeFilter}:${sort}:${outOfStockOnly}`}
           selectable
           mobileCards
           selectedIds={selectedRowIds}

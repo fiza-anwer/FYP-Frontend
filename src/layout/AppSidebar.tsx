@@ -12,6 +12,7 @@ import {
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
+import { preloadTenantListData, tenantApi } from "../api/client";
 
 type NavItem = {
   name: string;
@@ -107,6 +108,16 @@ const AppSidebar: React.FC = () => {
     () => (isSuperadmin ? superadminNavItems : tenantNavItems),
     [isSuperadmin]
   );
+  const preloadProducts = () => {
+    void tenantApi.getProducts({ sort: "newest", limit: 10, offset: 0 }).catch((error: unknown) => {
+      console.warn("Could not preload products:", error);
+    });
+  };
+  const preloadOrders = () => {
+    void preloadTenantListData().catch((error: unknown) => {
+      console.warn("Could not preload orders and consignments:", error);
+    });
+  };
 
   const [openSubmenu, setOpenSubmenu] = useState<{
     type: "main" | "others";
@@ -171,7 +182,19 @@ const AppSidebar: React.FC = () => {
         <li key={nav.name}>
           {nav.subItems ? (
             <button
-              onClick={() => handleSubmenuToggle(index, menuType)}
+              onClick={() => {
+                handleSubmenuToggle(index, menuType);
+                if (nav.name === "Product management") preloadProducts();
+                if (nav.name === "Order management") preloadOrders();
+              }}
+              onMouseEnter={() => {
+                if (nav.name === "Product management") preloadProducts();
+                if (nav.name === "Order management") preloadOrders();
+              }}
+              onFocus={() => {
+                if (nav.name === "Product management") preloadProducts();
+                if (nav.name === "Order management") preloadOrders();
+              }}
               className={`menu-item group ${
                 openSubmenu?.type === menuType && openSubmenu?.index === index
                   ? "menu-item-active"
@@ -247,6 +270,14 @@ const AppSidebar: React.FC = () => {
                   <li key={subItem.name}>
                     <Link
                       to={subItem.path}
+                      onMouseEnter={() => {
+                        if (subItem.path === "/products") preloadProducts();
+                        if (subItem.path === "/orders" || subItem.path === "/consignments") preloadOrders();
+                      }}
+                      onFocus={() => {
+                        if (subItem.path === "/products") preloadProducts();
+                        if (subItem.path === "/orders" || subItem.path === "/consignments") preloadOrders();
+                      }}
                       onClick={() => {
                         if (isMobileOpen) closeMobileSidebar();
                       }}

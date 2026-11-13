@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import SelectField from "../components/form/SelectField";
 import { useSearchParams } from "react-router";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
@@ -88,10 +88,12 @@ export default function Orders() {
   const headerSearch = searchParams.get("search")?.trim() ?? "";
   const [companies, setCompanies] = useState<Company[]>([]);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
-  const [consignments, setConsignments] = useState<Consignment[]>([]);
   const [carrierIntegrations, setCarrierIntegrations] = useState<CarrierIntegration[]>([]);
   const [carrierIntegrationServices, setCarrierIntegrationServices] = useState<CarrierIntegrationService[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMoreOrders, setLoadingMoreOrders] = useState(false);
+  const [hasMoreOrders, setHasMoreOrders] = useState(false);
+  const [nextOrdersOffset, setNextOrdersOffset] = useState(0);
   const [error, setError] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
   const [platformFilter, setPlatformFilter] = useState("");
@@ -108,32 +110,64 @@ export default function Orders() {
   const [consignmentSuccessCount, setConsignmentSuccessCount] = useState<number | null>(null);
   const [orderSort, setOrderSort] = useState<"newest" | "oldest">("newest");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setError("");
     setBackfillSuccess(null);
+    setLoading(true);
+    setAllOrders([]);
+    setNextOrdersOffset(0);
+    setHasMoreOrders(false);
     try {
-      const orderParams: { company_id?: string; sort?: string } = { sort: orderSort };
+      const orderParams: { company_id?: string; sort?: string; limit: number; offset: number } = {
+        sort: orderSort,
+        limit: 10,
+        offset: 0,
+      };
       if (companyFilter) orderParams.company_id = companyFilter;
-      const [companiesRes, ordersRes, consignmentsRes, carriersRes] = await Promise.all([
+      const ordersRes = await tenantApi.getOrders(orderParams);
+      const firstOrders = Array.isArray(ordersRes?.orders) ? ordersRes.orders : [];
+      setAllOrders(firstOrders);
+      setNextOrdersOffset(firstOrders.length);
+      setHasMoreOrders(!!ordersRes?.has_more);
+      setLoading(false);
+      const [companiesRes, carriersRes] = await Promise.all([
         tenantApi.getCompanies(),
-        tenantApi.getOrders(orderParams),
-        tenantApi.getConsignments(companyFilter ? { company_id: companyFilter } : undefined),
         tenantApi.getCarrierIntegrations(),
       ]);
       setCompanies(Array.isArray(companiesRes?.companies) ? companiesRes.companies : []);
-      setAllOrders(Array.isArray(ordersRes?.orders) ? ordersRes.orders : []);
-      setConsignments(Array.isArray(consignmentsRes?.consignments) ? consignmentsRes.consignments : []);
       setCarrierIntegrations(Array.isArray(carriersRes?.carrier_integrations) ? carriersRes.carrier_integrations : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load orders");
     } finally {
       setLoading(false);
     }
+  }, [companyFilter, orderSort]);
+
+  const loadMoreOrders = async () => {
+    if (loadingMoreOrders || !hasMoreOrders) return;
+    setLoadingMoreOrders(true);
+    try {
+      const res = await tenantApi.getOrders({
+        company_id: companyFilter || undefined,
+        sort: orderSort,
+        limit: 10,
+        offset: nextOrdersOffset,
+      });
+      const moreOrders = Array.isArray(res?.orders) ? res.orders : [];
+      setAllOrders((current) => [...current, ...moreOrders]);
+      setNextOrdersOffset((offset) => offset + moreOrders.length);
+      setHasMoreOrders(!!res?.has_more);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load more orders");
+      setHasMoreOrders(false);
+    } finally {
+      setLoadingMoreOrders(false);
+    }
   };
 
   useEffect(() => {
     load();
-  }, [companyFilter, orderSort]);
+  }, [load]);
 
   const loadCarrierServices = async (carrierIntegrationId: string) => {
     if (!carrierIntegrationId) {
@@ -429,6 +463,10 @@ export default function Orders() {
           keyExtractor={(o) => o.id}
           emptyMessage={companyFilter ? "No orders for this company." : "No orders yet. Add an active integration (e.g. Shopify) and wait for the next import."}
           loading={loading}
+          hasMore={hasMoreOrders}
+          loadingMore={loadingMoreOrders}
+          onLoadMore={loadMoreOrders}
+          resetKey={`${companyFilter}:${orderSort}`}
           selectable
           selectedIds={Array.from(selectedIds)}
           onSelectionChange={handleSelectionChange}

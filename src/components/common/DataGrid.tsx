@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 export type DataGridColumn<T> = {
   key: string;
@@ -25,7 +25,13 @@ type DataGridProps<T> = {
   onRowClick?: (row: T) => void;
   /** Render each row as a stacked card on small screens instead of a clipped table. */
   mobileCards?: boolean;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void | Promise<void>;
+  resetKey?: string | number;
 };
+
+const PAGE_SIZE = 10;
 
 const thClass =
   "px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-600 uppercase whitespace-nowrap dark:text-gray-300";
@@ -45,7 +51,50 @@ function DataGrid<T>({
   onRowDoubleClick,
   onRowClick,
   mobileCards = false,
+  hasMore,
+  loadingMore = false,
+  onLoadMore,
+  resetKey,
 }: DataGridProps<T>) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const previousLengthRef = useRef(data.length);
+  const requestInFlightRef = useRef(false);
+  const hasMoreRows = hasMore ?? visibleCount < data.length;
+  const visibleData = data.slice(0, visibleCount);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [resetKey]);
+
+  useEffect(() => {
+    const previousLength = previousLengthRef.current;
+    if (data.length < previousLength) {
+      setVisibleCount(PAGE_SIZE);
+    } else if (data.length > previousLength && onLoadMore) {
+      setVisibleCount((count) => Math.min(data.length, count + data.length - previousLength));
+    }
+    previousLengthRef.current = data.length;
+  }, [data.length, onLoadMore]);
+
+  useEffect(() => {
+    if (!loadingMore) requestInFlightRef.current = false;
+  }, [loadingMore]);
+
+  useEffect(() => {
+    if (loading || loadingMore || requestInFlightRef.current) return;
+    if (visibleCount < data.length) {
+      setVisibleCount((count) => Math.min(data.length, count + PAGE_SIZE));
+      return;
+    }
+    if (hasMoreRows && onLoadMore) {
+      requestInFlightRef.current = true;
+      void Promise.resolve(onLoadMore()).catch((error: unknown) => {
+        requestInFlightRef.current = false;
+        console.error("Could not load more table rows:", error);
+      });
+    }
+  }, [data.length, hasMoreRows, loading, loadingMore, onLoadMore, visibleCount]);
+
   const set = new Set(selectedIds);
   const allSelected = data.length > 0 && data.every((row) => set.has(keyExtractor(row)));
   const toggleAll = () => {
@@ -77,7 +126,7 @@ function DataGrid<T>({
           ) : data.length === 0 ? (
             <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">{emptyMessage}</p>
           ) : (
-            data.map((row, index) => {
+            visibleData.map((row, index) => {
               const id = keyExtractor(row);
               const rowKey = id != null && String(id).trim() !== "" ? String(id) : `mobile-row-${index}`;
               return (
@@ -179,7 +228,7 @@ function DataGrid<T>({
                 </td>
               </tr>
             ) : (
-              data.map((row, index) => {
+              visibleData.map((row, index) => {
                 const id = keyExtractor(row);
                 const rowKey = id != null && String(id).trim() !== "" ? String(id) : `row-${index}`;
                 const zebra =
