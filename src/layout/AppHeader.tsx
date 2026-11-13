@@ -117,7 +117,7 @@ const AppHeader: React.FC = () => {
                 )}
               </svg>
             </button>
-            <Link to="/" className="pointer-events-auto absolute left-1/2 flex max-w-[calc(100vw-140px)] -translate-x-1/2 items-center justify-center">
+            <Link to="/dashboard" className="pointer-events-auto absolute left-1/2 flex max-w-[calc(100vw-140px)] -translate-x-1/2 items-center justify-center">
               {displayName ? (
                 <span className="truncate text-center text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
                   {displayName}

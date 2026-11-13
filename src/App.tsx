@@ -8,6 +8,13 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 
 const SignIn = lazy(() => import("./pages/AuthPages/SignIn"));
 const SignUp = lazy(() => import("./pages/AuthPages/SignUp"));
+const Landing = lazy(() => import("./pages/Landing"));
+const PublicSiteLayout = lazy(() => import("./pages/PublicSiteLayout"));
+const FeaturesPage = lazy(() => import("./pages/PublicSitePages").then((pages) => ({ default: pages.FeaturesPage })));
+const HowItWorksPage = lazy(() => import("./pages/PublicSitePages").then((pages) => ({ default: pages.HowItWorksPage })));
+const PlansPage = lazy(() => import("./pages/PublicSitePages").then((pages) => ({ default: pages.PlansPage })));
+const AboutPage = lazy(() => import("./pages/PublicSitePages").then((pages) => ({ default: pages.AboutPage })));
+const ContactPage = lazy(() => import("./pages/PublicSitePages").then((pages) => ({ default: pages.ContactPage })));
 const NotFound = lazy(() => import("./pages/OtherPage/NotFound"));
 const AppLayout = lazy(() => import("./layout/AppLayout"));
 const Home = lazy(() => import("./pages/Dashboard/Home"));
@@ -43,13 +50,21 @@ function AppRoutes() {
       fallback={<AppLoading />}
     >
       <Routes>
+        <Route element={<PublicSiteLayout />}>
+          <Route path="/" element={<Landing />} />
+          <Route path="/features" element={<FeaturesPage />} />
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
+          <Route path="/plans" element={<PlansPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+        </Route>
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/email-change" element={<EmailChangeAction />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
-            <Route index path="/" element={<Home />} />
+            <Route path="/dashboard" element={<Home />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/consignments" element={<Consignments />} />
             <Route path="/companies" element={<Companies />} />

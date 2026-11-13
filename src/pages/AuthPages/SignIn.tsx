@@ -13,7 +13,7 @@ export default function SignIn() {
   useEffect(() => {
     if (token && user) {
       if (user.role === "superadmin") navigate("/superadmin/tenants", { replace: true });
-      else navigate("/", { replace: true });
+      else navigate("/dashboard", { replace: true });
     }
   }, [token, user, navigate]);
 

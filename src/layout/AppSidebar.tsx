@@ -27,7 +27,7 @@ const tenantNavItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Dashboard",
-    path: "/",
+    path: "/dashboard",
     iconColor: "text-teal-500 group-hover:text-teal-600 dark:text-teal-400",
     iconColorActive: "text-teal-600 dark:text-teal-400",
   },
@@ -73,7 +73,7 @@ const superadminNavItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Dashboard",
-    path: "/",
+    path: "/dashboard",
     iconColor: "text-teal-500 group-hover:text-teal-600 dark:text-teal-400",
     iconColorActive: "text-teal-600 dark:text-teal-400",
   },
@@ -337,7 +337,7 @@ const AppSidebar: React.FC = () => {
       <div className={`hidden shrink-0 items-center py-8 lg:flex ${
         isExpanded || isMobileOpen ? "justify-between" : "justify-center"
       }`}>
-        <Link to="/" className={`hidden min-w-0 items-center lg:flex ${!isExpanded && !isMobileOpen ? "lg:hidden" : ""}`}>
+        <Link to="/dashboard" className={`hidden min-w-0 items-center lg:flex ${!isExpanded && !isMobileOpen ? "lg:hidden" : ""}`}>
           {showTenantName ? (
             <span className="text-xl font-semibold truncate text-gray-900 dark:text-white">
               {tenantDisplayName}
