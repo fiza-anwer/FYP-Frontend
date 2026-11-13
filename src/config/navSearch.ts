@@ -1,7 +1,7 @@
 export type SearchPage = { name: string; path: string; group: string; keywords?: string };
 
 export const tenantSearchPages: SearchPage[] = [
-  { name: "Dashboard", path: "/", group: "Menu", keywords: "home overview analytics" },
+  { name: "Dashboard", path: "/dashboard", group: "Menu", keywords: "home overview analytics" },
   { name: "Orders", path: "/orders", group: "Orders", keywords: "order sales" },
   { name: "Consignments", path: "/consignments", group: "Orders", keywords: "shipping tracking" },
   { name: "Products", path: "/products", group: "Catalog", keywords: "items sku catalog" },
@@ -17,7 +17,7 @@ export const tenantSearchPages: SearchPage[] = [
 ];
 
 export const superadminSearchPages: SearchPage[] = [
-  { name: "Dashboard", path: "/", group: "Menu" },
+  { name: "Dashboard", path: "/dashboard", group: "Menu" },
   { name: "Tenant Management", path: "/superadmin/tenants", group: "Admin", keywords: "tenants users approve" },
 ];
 

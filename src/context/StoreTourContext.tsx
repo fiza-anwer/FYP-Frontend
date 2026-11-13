@@ -37,14 +37,14 @@ export function onboardingStorageKey(user: AuthUser | null) {
 
 const storeSteps: TourStep[] = [
   {
-    path: "/",
+    path: "/dashboard",
     target: "[data-tour='sidebar-navigation']",
     mobileTarget: "[data-tour='mobile-sidebar-toggle']",
     title: "Navigate the workspace",
     body: "The sidebar groups your daily work: Dashboard; Orders and Consignments; Products and Inventory; and Setup for companies, sales channels, carriers, and carrier services. Expand a group, then choose a page. On mobile, open the sidebar with the menu button.",
   },
   {
-    path: "/",
+    path: "/dashboard",
     target: "[data-tour='dashboard-overview']",
     title: "Start at the dashboard",
     body: "Use the summary cards and charts to understand sales, order volume, and catalog size. Follow the getting-started checklist for setup tasks and use product/order links to investigate activity.",
