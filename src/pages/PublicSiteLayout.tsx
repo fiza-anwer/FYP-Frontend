@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from "react-router";
+import { Link, Navigate, NavLink, Outlet } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import "./Landing.css";
 
@@ -13,8 +13,8 @@ const publicLinks = [
 export default function PublicSiteLayout() {
   const { user } = useAuth();
   const workspacePath = user?.role === "superadmin" ? "/superadmin/tenants" : "/dashboard";
-  const primaryPath = user ? workspacePath : "/signup";
-  const primaryLabel = user ? "Open workspace" : "Get started";
+
+  if (user) return <Navigate to={workspacePath} replace />;
 
   return (
     <div className="landing-page">
@@ -40,7 +40,7 @@ export default function PublicSiteLayout() {
         </details>
         <div className="landing-header-actions">
           <Link className="landing-login" to="/signin">Sign in</Link>
-          <Link className="landing-nav-cta" to={primaryPath}>{primaryLabel}<span aria-hidden="true">&#8599;</span></Link>
+          <Link className="landing-nav-cta" to="/signup">Get started<span aria-hidden="true">&#8599;</span></Link>
         </div>
       </header>
       <Outlet />
