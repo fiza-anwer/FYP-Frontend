@@ -50,7 +50,7 @@ To get started with TailAdmin, ensure you have the following prerequisites insta
 
 ### Android app download
 
-The Settings page displays a mobile app download when `VITE_ANDROID_APK_URL` is configured at build time. Set it to the deployed APK path (for example `/downloads/unisell-mobile.apk`) or an HTTPS URL. For a local path, place the signed release APK at `public/downloads/unisell-mobile.apk` before building the website. Until a URL is configured, Settings shows that the APK is not published.
+The Settings page links to the Android APK published on GitHub Releases. To use a different APK, set `VITE_ANDROID_APK_URL` at build time to a deployed APK path or HTTPS URL. For a local path, place the signed release APK at `public/downloads/unisell-mobile.apk` before building the website.
 
 ### Cloning the Repository
 
