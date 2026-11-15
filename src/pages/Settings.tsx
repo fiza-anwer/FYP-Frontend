@@ -2,7 +2,9 @@ import { Link } from "react-router";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
 
-const androidApkUrl = import.meta.env.VITE_ANDROID_APK_URL?.trim() ?? "";
+const androidApkUrl =
+  import.meta.env.VITE_ANDROID_APK_URL?.trim() ||
+  "https://github.com/SabaNoreen121/FYP-Unisell-Mobile/releases/download/v1.0.0/unisell-mobile-v1.0.0.apk";
 const isAllowedApkUrl =
   androidApkUrl.startsWith("/") && !androidApkUrl.startsWith("//")
     ? true
