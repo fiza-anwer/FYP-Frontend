@@ -1,11 +1,12 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useNavigate } from "react-router";
 import PageBreadcrumb from "../components/common/PageBreadCrumb";
 import PageMeta from "../components/common/PageMeta";
 import { api, setToken } from "../api/client";
 import { useAuth, type AuthUser } from "../context/AuthContext";
 
 type ProfileResponse = { user: AuthUser };
-type ProfileUpdateResponse = { token?: string; user: AuthUser; pending_email?: string; password_notice_sent?: boolean };
+type ProfileUpdateResponse = { token?: string; expires_at?: string; user: AuthUser; pending_email?: string; password_notice_sent?: boolean };
 type ActiveSession = {
   id: string;
   user_agent: string;
@@ -23,7 +24,8 @@ const COMMON_PASSWORDS = new Set([
 ]);
 
 export default function MyProfile() {
-  const { user, isSuperadmin, setUser } = useAuth();
+  const { user, isSuperadmin, setUser, logout } = useAuth();
+  const navigate = useNavigate();
   const [name, setName] = useState(user?.name || user?.tenant_name || user?.username || "");
   const [email, setEmail] = useState(user?.email || "");
   const [avatar, setAvatar] = useState(user?.avatar || "");
@@ -39,6 +41,7 @@ export default function MyProfile() {
   const [pendingEmail, setPendingEmail] = useState("");
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [securityBusy, setSecurityBusy] = useState(false);
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
 
   const isDirty =
     name.trim() !== initialProfile.name ||
@@ -133,7 +136,10 @@ export default function MyProfile() {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
-      if (result.token) setToken(result.token);
+      if (result.token) {
+        if (!result.expires_at) throw new Error("The profile response omitted the session expiry. Please sign in again.");
+        setToken(result.token, result.expires_at);
+      }
       setUser(result.user);
       setName(result.user.name || result.user.tenant_name || "");
       setEmail(result.user.email || "");
@@ -174,20 +180,25 @@ export default function MyProfile() {
       }
     }
 
-  async function revokeOtherSessions() {
-      setSecurityBusy(true);
-      setError("");
-      try {
-        await api<{ revoked: number }>("/api/auth/sessions/others", { method: "DELETE" });
-        const currentSessions = await api<ActiveSession[]>("/api/auth/sessions");
-        setSessions(currentSessions);
-        setNotice("Other signed-in devices have been signed out.");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not sign out other devices");
-      } finally {
-        setSecurityBusy(false);
+  async function revokeSession(session: ActiveSession) {
+    setRevokingSessionId(session.id);
+    setError("");
+    setNotice("");
+    try {
+      await api<{ revoked: boolean }>(`/api/auth/sessions/${encodeURIComponent(session.id)}`, { method: "DELETE" });
+      if (session.current) {
+        logout();
+        navigate("/signin", { replace: true });
+        return;
       }
+      setSessions((currentSessions) => currentSessions.filter((item) => item.id !== session.id));
+      setNotice("That login has been signed out.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not sign out this login");
+    } finally {
+      setRevokingSessionId(null);
     }
+  }
   return (
     <div data-tour="profile-settings">
       <PageMeta title="My Profile | UniSell" description="View and update your UniSell account details." />
@@ -372,19 +383,9 @@ export default function MyProfile() {
       {!loading && (
         <>
           <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900/50">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Active sessions</h2>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Devices currently signed in to your account.</p>
-              </div>
-              <button
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-white/5"
-                type="button"
-                onClick={revokeOtherSessions}
-                disabled={securityBusy || sessions.length <= 1}
-              >
-                Log out other devices
-              </button>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Active sessions</h2>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Devices currently signed in to your account.</p>
             </div>
             <ul className="mt-4 divide-y divide-gray-100 dark:divide-gray-800">
               {sessions.map((session) => (
@@ -397,6 +398,15 @@ export default function MyProfile() {
                       Last active {prettyDate(session.last_seen_at)} · IP {session.ip_address || "unknown"}
                     </p>
                   </div>
+                  <button
+                    className="shrink-0 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-500/10"
+                    type="button"
+                    onClick={() => revokeSession(session)}
+                    disabled={revokingSessionId !== null}
+                    aria-label={`Log out ${session.current ? "this device" : "this login"}`}
+                  >
+                    {revokingSessionId === session.id ? "Logging out…" : "Log out"}
+                  </button>
                 </li>
               ))}
               {sessions.length === 0 && <li className="py-3 text-sm text-gray-500 dark:text-gray-400">No active sessions found.</li>}

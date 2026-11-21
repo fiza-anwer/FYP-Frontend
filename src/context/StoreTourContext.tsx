@@ -181,21 +181,14 @@ function toRect(element: Element): TargetRect {
 function TourExperience({
   activeTour,
   stepIndex,
-  welcomeOpen,
-  dismissWelcome,
-  beginStoreTour,
   closeTour,
   goToStep,
 }: {
   activeTour: ActiveTour | null;
   stepIndex: number;
-  welcomeOpen: boolean;
-  dismissWelcome: () => void;
-  beginStoreTour: () => void;
   closeTour: () => void;
   goToStep: (index: number) => void;
 }) {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
@@ -206,7 +199,7 @@ function TourExperience({
   const step = activeTour?.steps[stepIndex] || null;
 
   useEffect(() => {
-    if (!welcomeOpen && !activeTour && !complete) return;
+    if (!activeTour && !complete) return;
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = dialogRef.current;
     const getFocusable = () => dialog?.querySelectorAll<HTMLElement>(
@@ -235,7 +228,7 @@ function TourExperience({
       window.removeEventListener("keydown", handleTab);
       previouslyFocused?.focus();
     };
-  }, [activeTour, complete, stepIndex, welcomeOpen]);
+  }, [activeTour, complete, stepIndex]);
 
   useEffect(() => {
     if (!step || location.pathname === step.path) return;
@@ -338,29 +331,6 @@ function TourExperience({
         : Math.max(16, rect.top - 360)
       : Math.max(16, Math.min(window.innerHeight - 360, rect.top + Math.min(rect.height / 2, 120) - 80))
     : Math.max(16, (window.innerHeight - 200) / 2);
-
-  if (welcomeOpen) {
-    const name = user?.name || user?.tenant_name || "there";
-    return (
-      <div className="fixed inset-0 z-[100001] flex items-center justify-center bg-slate-950/60 p-4" role="presentation">
-        <section
-          aria-labelledby="store-tour-welcome-title"
-          aria-modal="true"
-          ref={dialogRef}
-          className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
-          role="dialog"
-        >
-          <p className="text-sm font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">Welcome to UniSell</p>
-          <h2 id="store-tour-welcome-title" className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">Welcome, {name}!</h2>
-          <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">Would you like a complete guided walkthrough of your store setup, catalog, inventory, orders, and shipping workflows? It takes about 8–10 minutes.</p>
-          <div className="mt-6 flex flex-wrap justify-end gap-3">
-            <button className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5" type="button" onClick={dismissWelcome}>Skip for now</button>
-            <button className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700" type="button" onClick={beginStoreTour}>Start full tour</button>
-          </div>
-        </section>
-      </div>
-    );
-  }
 
   if (activeTour && step) {
     const left = rect ? Math.max(16, Math.min(tooltipLeft, window.innerWidth - tooltipWidth - 16)) : tooltipLeft;
@@ -466,20 +436,13 @@ export function StoreTourProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [activeTour, setActiveTour] = useState<ActiveTour | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const storageKey = onboardingStorageKey(user);
   const isTenant = user?.role === "tenant";
 
-  useEffect(() => {
-    if (!user || !isTenant) return;
-    setWelcomeOpen(localStorage.getItem(storageKey) !== "seen");
-  }, [isTenant, storageKey, user]);
-
   const markSeen = useCallback(() => {
     localStorage.setItem(storageKey, "seen");
-    setWelcomeOpen(false);
   }, [storageKey]);
 
   const startSteps = useCallback((kind: ActiveTour["kind"], steps: TourStep[]) => {
@@ -490,16 +453,17 @@ export function StoreTourProvider({ children }: { children: ReactNode }) {
 
   const startTour = useCallback(() => startSteps("store", storeSteps), [startSteps]);
   const startPageTour = useCallback((page: PageTour) => startSteps(page, pageSteps[page]), [startSteps]);
+  useEffect(() => {
+    if (!user || !isTenant || localStorage.getItem(storageKey) === "seen") return;
+    startTour();
+  }, [isTenant, startTour, storageKey, user]);
+
   const closeTour = useCallback(() => setActiveTour(null), []);
   const goToStep = useCallback((index: number) => {
     setStepIndex(index);
     const step = activeTour?.steps[index];
     if (step && location.pathname !== step.path) navigate(step.path);
   }, [activeTour, location.pathname, navigate]);
-  const dismissWelcome = useCallback(() => {
-    markSeen();
-    setActiveTour(null);
-  }, [markSeen]);
 
   const contextValue = useMemo(() => ({ startTour, startPageTour }), [startPageTour, startTour]);
   return (
@@ -508,9 +472,6 @@ export function StoreTourProvider({ children }: { children: ReactNode }) {
       <TourExperience
         activeTour={activeTour}
         stepIndex={stepIndex}
-        welcomeOpen={welcomeOpen}
-        dismissWelcome={dismissWelcome}
-        beginStoreTour={startTour}
         closeTour={closeTour}
         goToStep={goToStep}
       />

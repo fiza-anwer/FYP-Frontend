@@ -1,14 +1,27 @@
 export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const TOKEN_KEY = "token";
+const TOKEN_EXPIRY_KEY = "tokenExpiresAt";
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return sessionStorage.getItem(TOKEN_KEY);
 }
 
-export function setToken(token: string): void {
+export function getTokenExpiry(): number | null {
+  const storedExpiry = sessionStorage.getItem(TOKEN_EXPIRY_KEY);
+  if (!storedExpiry) return null;
+  const expiry = Date.parse(storedExpiry);
+  return Number.isFinite(expiry) ? expiry : null;
+}
+
+export function setToken(token: string, expiresAt: string): void {
+  const expiry = Date.parse(expiresAt);
+  if (!Number.isFinite(expiry) || expiry <= Date.now()) {
+    throw new Error("The sign-in response contains an invalid session expiry.");
+  }
   clearApiCaches();
-  localStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(TOKEN_EXPIRY_KEY, expiresAt);
 }
 
 /** Open consignment label in new window (uses auth). Pass a window opened on click to avoid pop-up blockers. */
@@ -440,6 +453,7 @@ export type StockAlertSummary = {
 
 export type LoginResponse = {
   token?: string;
+  expires_at?: string;
   user?: {
     email: string;
     role: string;

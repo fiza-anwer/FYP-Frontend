@@ -42,8 +42,8 @@ export default function SignInForm() {
     const emailNorm = email.trim().toLowerCase();
     try {
       const res = await authApi.login({ email: emailNorm, password });
-      if (!res.token || !res.user) throw new Error("Sign-in response was incomplete. Please try again.");
-      setToken(res.token);
+      if (!res.token || !res.user || !res.expires_at) throw new Error("Sign-in response was incomplete. Please try again.");
+      setToken(res.token, res.expires_at);
       setUser(res.user as Parameters<typeof setUser>[0]);
       if (!res.user.isSuperadmin && res.stock_alerts) {
         setLoginStockAlerts(res.stock_alerts);

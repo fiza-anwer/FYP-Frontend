@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { getToken } from "../api/client";
+import { getToken, getTokenExpiry } from "../api/client";
 
 const USER_KEY = "user";
 const TOKEN_KEY = "token";
@@ -28,7 +28,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function readUserFromStorage(): AuthUser | null {
   try {
-    const raw = localStorage.getItem(USER_KEY);
+    const raw = sessionStorage.getItem(USER_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as AuthUser;
   } catch {
@@ -48,30 +48,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUserState] = useState<AuthUser | null>(readUserFromStorage);
 
   useEffect(() => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
     const token = getToken();
     const stored = readUserFromStorage();
     if (!token && stored) {
       setUserState(null);
-      localStorage.removeItem(USER_KEY);
+      sessionStorage.removeItem(USER_KEY);
     } else {
       setUserState(stored);
     }
   }, []);
 
+  const logout = useCallback(() => {
+    setUserState(null);
+    sessionStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem("tokenExpiresAt");
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const token = getToken();
+    const expiresAt = getTokenExpiry();
+    if (!token || expiresAt === null) {
+      logout();
+      return;
+    }
+
+    const remaining = expiresAt - Date.now();
+    if (remaining <= 0) {
+      logout();
+      window.location.replace("/signin");
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      logout();
+      window.location.replace("/signin");
+    }, remaining);
+    return () => window.clearTimeout(timeout);
+  }, [logout, user]);
+
   const setUser = useCallback((u: AuthUser | null) => {
     setUserState(u);
     if (u) {
-      localStorage.setItem(USER_KEY, JSON.stringify(u));
+      sessionStorage.setItem(USER_KEY, JSON.stringify(u));
     } else {
-      localStorage.removeItem(USER_KEY);
-      localStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(USER_KEY);
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem("tokenExpiresAt");
     }
-  }, []);
-
-  const logout = useCallback(() => {
-    setUserState(null);
-    localStorage.removeItem(USER_KEY);
-    localStorage.removeItem(TOKEN_KEY);
   }, []);
 
   const isSuperadmin = user?.role === "superadmin";

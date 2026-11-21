@@ -183,7 +183,15 @@ export default function Products() {
         offset: nextProductsOffset,
       });
       const moreProducts = Array.isArray(res?.products) ? res.products : [];
-      setProducts((current) => [...current, ...moreProducts]);
+      setProducts((current) => {
+        const seenIds = new Set(current.map((product) => product.id));
+        const uniqueMoreProducts = moreProducts.filter((product) => {
+          if (seenIds.has(product.id)) return false;
+          seenIds.add(product.id);
+          return true;
+        });
+        return [...current, ...uniqueMoreProducts];
+      });
       setNextProductsOffset((offset) => offset + moreProducts.length);
       setHasMoreProducts(!!res?.has_more);
     } catch (e) {
@@ -1579,7 +1587,7 @@ export default function Products() {
 
       {listingChoiceOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/50 p-4"
           onClick={() => setListingChoiceOpen(false)}
         >
           <div

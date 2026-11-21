@@ -32,6 +32,9 @@ export default function EmailChangeAction() {
         if (action === "confirm" || action === "rollback") {
           localStorage.removeItem("token");
           localStorage.removeItem("user");
+          sessionStorage.removeItem("token");
+          sessionStorage.removeItem("tokenExpiresAt");
+          sessionStorage.removeItem("user");
         }
       })
       .catch((err: unknown) => {
